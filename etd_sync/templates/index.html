@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf }}">
+<title>长荣货物 ETD 追踪系统</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='console.css') }}"><script src="{{ url_for('static', filename='console.js') }}" defer></script>
+</head>
+<body>
+<aside class="sidebar">
+<a class="brand" href="/" aria-label="长荣货物追踪首页"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M7 13h10l-2 4H9zM10 13V8h4v5M12 8V5"/></svg><span>长荣货物追踪</span></a>
+<nav class="menu" aria-label="主导航">
+<button class="menu-item active" data-page="realtime" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h5l2-4 4 8 2-4h5"/></svg>实时数据变更</button>
+<button class="menu-item" data-page="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6h4"/></svg>历史变更记录</button>
+<button class="menu-item" data-page="logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>系统运行记录</button>
+<button class="menu-item" data-page="help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7l1 2 1-2h7v15h-7l-1 2-1-2H4zM12 6v15M7 8h2M15 8h2M7 12h2M15 12h2"/></svg>使用说明</button>
+</nav>
+<div class="sidebar-foot"><span class="connection" id="connection"><span class="dot"></span>正在连接</span><span>手动同步 · WPS 共享表格</span></div>
+</aside>
+<div class="main-content">
+<header class="app-header"><h1 id="page-title">实时数据变更</h1><div class="header-info">上次同步：<span id="header-sync-time">尚未执行</span></div></header>
+<main class="content-scroll">
+<div class="error-banner" id="error" role="alert" hidden></div>
+<section id="page-realtime" class="page-section">
+<div class="summary" aria-label="订单与最近一次同步统计">
+<div><span class="stat-label">监控提单总数</span><strong id="stat-total">—</strong><span class="stat-detail" id="sheet-name">WPS 共享表格</span></div>
+<div><span class="stat-label">ETD 未变更</span><strong class="green" id="stat-unchanged">—</strong><span class="stat-detail">已核对，无需写入</span></div>
+<div><span class="stat-label">ETD 已更新</span><strong class="blue" id="stat-updated">—</strong><span class="stat-detail">已写回 WPS 并验证</span></div>
+<div><span class="stat-label">查询 / 写入失败</span><strong class="red" id="stat-failed">—</strong><span class="stat-detail">查询保留旧值，写入异常待确认</span></div>
+</div>
+<section class="task-panel" aria-label="同步进度" aria-live="polite">
+<div class="task-top"><div class="task-copy"><span class="status-mark" id="task-mark"></span><strong id="task-title">准备就绪</strong><span id="task-message">点击“手动同步数据”，查询并更新共享表格。</span></div><span id="task-count" class="task-count"></span></div>
+<progress id="progress" value="0" max="100" aria-label="本次同步进度" hidden></progress>
+<div class="task-footer"><span id="last-sync">尚未执行同步</span><span>原始 ETD 保持不变，仅更新最新 ETD。</span></div>
+</section>
+<div class="toolbar"><div><h2>船期数据总览</h2><span class="toolbar-note">查询最新船期，查看本次同步的变化与异常</span></div><div class="actions"><button id="read-button" class="button secondary" type="button">读取订单</button><button id="sync-button" class="button primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17"/></svg><span>手动同步数据</span></button></div></div>
+<section class="workspace" aria-labelledby="orders-title">
+<div class="workspace-heading"><div><h2 id="orders-title">订单列表</h2><span class="small" id="table-note">数据以最近一次读取为准</span></div><button id="back-button" class="text-button" hidden>返回订单列表</button><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" id="search" aria-label="搜索单号" placeholder="输入单号搜索"></label></div>
+<div class="table-toolbar"><div class="filters" role="group" aria-label="筛选订单"><button type="button" class="filter active" data-filter="all" aria-pressed="true">全部订单 <span id="count-all">0</span></button><button type="button" class="filter" data-filter="updated" aria-pressed="false">已更新 <span id="count-updated">0</span></button><button type="button" class="filter" data-filter="failed" aria-pressed="false">异常订单 <span id="count-failed">0</span></button></div><span id="result-count" class="small"></span></div>
+<div class="table-scroll"><table><thead><tr><th scope="col">提单 / 订舱号</th><th scope="col">原始 ETD</th><th scope="col">同步前 ETD</th><th scope="col">官网最新 ETD</th><th scope="col">同步状态</th><th scope="col">最近成功查询</th></tr></thead><tbody id="orders-body"></tbody></table></div>
+<div class="empty-state" id="empty"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 8h20l6 6v26H11zM31 8v8h6M17 23h14M17 30h9"/></svg><h3 id="empty-title">暂无订单数据</h3><p id="empty-message">点击“读取订单”查看共享表格数据，<br>或点击“手动同步数据”完成查询与更新。</p></div>
+<div class="workspace-foot"><span><span class="dot green-dot"></span>已更新表示写入后验证成功</span><span>查询失败保留旧值；写入异常请重新读取确认</span></div>
+</section>
+</section>
+<section id="page-history" class="page-section" hidden>
+<div class="section-heading"><div><h2>历史变更记录</h2><p>展示最近 30 次任务中成功写回的变更，便于回溯。</p></div><span class="small">北京时间</span></div>
+<div class="workspace"><div class="table-scroll"><table><thead><tr><th scope="col">发现时间</th><th scope="col">提单 / 订舱号</th><th scope="col">原始 ETD</th><th scope="col">同步前 ETD</th><th scope="col">变更后 ETD</th><th scope="col">处理状态</th></tr></thead><tbody id="changes-body"></tbody></table></div><div class="simple-empty" id="changes-empty">暂无成功写入的变更记录。</div></div>
+<section class="history" aria-labelledby="history-title"><div class="history-heading"><h2 id="history-title">同步任务记录</h2><span class="small">查看每次任务的完整明细</span></div><div id="history-list" class="history-list"><p class="small">暂无操作记录。</p></div></section>
+</section>
+<section id="page-logs" class="page-section" hidden>
+<div class="section-heading"><div><h2>系统运行记录</h2><p>显示读取、查询与写回的实际结果，同步期间自动更新。</p></div><span class="small" id="log-count">0 条记录</span></div>
+<div class="terminal-wrapper"><div class="terminal-header"><div class="terminal-dots"><i></i><i></i><i></i></div><span>ETD Sync Console</span><span class="terminal-label">任务记录</span></div><div class="terminal-body" id="terminal-logs" role="log" aria-label="任务运行记录"><p>等待执行首次任务…</p></div></div>
+</section>
+<section id="page-help" class="page-section" hidden aria-labelledby="help-title">
+<div class="section-heading"><div><h2 id="help-title">使用说明与产品介绍</h2><p>日常只需维护共享表格，点击一次同步即可更新船期。</p></div></div>
+<article class="help-document">
+<section><h3>这个工具能做什么？</h3><p>长荣货物 ETD 追踪系统面向海运代理业务人员，从 WPS 共享表格读取提单号或订舱号，查询长荣官网的装货港预计离港日期（ETD）。日期发生变化时，系统更新共享表格中的最新 ETD，保留原始 ETD，并展示统计、变更明细和查询结果，减少逐票人工核对。</p><p>目前采用手动同步，点击后才会查询；页面中的日期代表最近一次查询结果。</p></section>
+<section><h3>日常使用，三步完成</h3><ol class="help-steps"><li><strong>在 WPS 中录入订单</strong><p>填写单号和原始 ETD。单号按文本保存；日期填写完整年月日，例如 <time datetime="2026-10-21">2026-10-21</time>。提单号与订舱号需使用管理员配置的同一种查询类型。</p></li><li><strong>点击“手动同步数据”</strong><p>在“实时数据变更”页面点击按钮，系统会读取全部订单、查询官网并写回变化。等待进度完成即可，无需重复点击。“读取订单”只刷新表格数据，不查询官网，也不修改 WPS。</p></li><li><strong>查看结果与变更</strong><p>通过“已更新”查看本次写回的日期，通过“异常订单”查看失败原因。点击左侧“历史变更记录”可回看修改前后的日期；“系统运行记录”可查看任务执行结果。</p></li></ol></section>
+<section><h3>同步状态怎么看？</h3><dl class="help-status"><div><dt><span class="badge updated">已更新</span></dt><dd>最新 ETD 已写入 WPS，并通过写入后校验。</dd></div><div><dt><span class="badge unchanged">无需变更</span></dt><dd>已核对官网日期，本次无需写回；不代表该票从未延期。</dd></div><div><dt><span class="badge failed">失败</span></dt><dd>查看该行原因，检查单号、日期或网络后再同步。官网查询失败时保留原有 ETD。</dd></div><div><dt><span class="badge failed">写入待确认</span></dt><dd>官网查询成功，但写入结果尚未确认。先点击“读取订单”，核实 WPS 的实际日期。</dd></div></dl></section>
+<section class="help-note"><h3>使用时留意</h3><p>原始 ETD 是入货通知中的日期，不会被系统覆盖。统计默认显示最近一次同步的结果，历史页面展示最近 30 次任务。同步时可切换页面，但本地运行时请保持服务窗口打开。系统当前不自动判断运价，也不自动调整价格，业务处理仍需结合船公司通知。</p></section>
+</article>
+</section>
+<footer>长荣货物 ETD 追踪系统<span>手动同步 · 官网船期以查询时结果为准</span></footer>
+</main></div>
+</body></html>

@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-21T15:07:15.588834+00:00",
+  "title": "Design System: 长荣货物 ETD 追踪系统",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "header",
+        "value": "0 1px 4px #00152914",
+        "purpose": "顶栏分隔"
+      },
+      {
+        "name": "stat-card",
+        "value": "0 2px 8px #00152907",
+        "purpose": "统计卡轻微抬升"
+      },
+      {
+        "name": "terminal",
+        "value": "0 4px 12px #00000016",
+        "purpose": "运行记录面板"
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "background .15s, color .15s, border-color .15s",
+        "purpose": "控件状态变化；减少动画偏好关闭过渡。"
+      },
+      {
+        "name": "running-breathe",
+        "value": "1.5s ease-in-out infinite; 50% opacity: .35",
+        "purpose": "运行状态点；减少动画偏好关闭动画。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1600px"
+      },
+      {
+        "name": "compact",
+        "value": "1200px"
+      },
+      {
+        "name": "tablet",
+        "value": "900px"
+      },
+      {
+        "name": "mobile",
+        "value": "620px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "启动手动同步数据。",
+      "html": "<button class=\"ds-primary\">手动同步数据</button>",
+      "css": ".ds-primary{height:36px;padding:0 16px;border:1px solid #096dce;border-radius:4px;background:#096dce;color:white;font:13px \"Microsoft YaHei\",sans-serif;cursor:pointer;transition:background .15s}.ds-primary:hover{background:#085eb2;border-color:#085eb2}.ds-primary:focus-visible{outline:3px solid #67adf5;outline-offset:3px}.ds-primary:disabled{opacity:.55;cursor:wait}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "读取共享表格订单。",
+      "html": "<button class=\"ds-secondary\">读取订单</button>",
+      "css": ".ds-secondary{height:36px;padding:0 16px;border:1px solid #e8eaed;border-radius:4px;background:white;color:#262626;font:13px \"Microsoft YaHei\",sans-serif;cursor:pointer;transition:color .15s,border-color .15s}.ds-secondary:hover{color:#1677df;border-color:#1677df}.ds-secondary:focus-visible{outline:3px solid #67adf5;outline-offset:3px}.ds-secondary:disabled{opacity:.55;cursor:wait}"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "search-input",
+      "description": "按单号筛选订单。",
+      "html": "<label class=\"ds-search\"><input aria-label=\"搜索单号\" placeholder=\"输入单号搜索\" type=\"search\"></label>",
+      "css": ".ds-search{display:flex;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;background:white}.ds-search input{width:100%;border:0;outline:0;background:transparent;color:#262626;font:12px \"Microsoft YaHei\",sans-serif}.ds-search:focus-within{outline:2px solid #67adf5;outline-offset:2px}.ds-search:hover{border-color:#1677df}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "实时、历史与运行记录导航。",
+      "html": "<nav class=\"ds-nav\" aria-label=\"主导航\"><button class=\"ds-active\" aria-current=\"page\">实时数据变更</button><button>历史变更记录</button><button>系统运行记录</button></nav>",
+      "css": ".ds-nav{width:220px;background:#001529;padding:20px 0}.ds-nav button{width:100%;padding:16px 24px;border:0;background:transparent;color:#b0bdc9;text-align:left;font:14px \"Microsoft YaHei\",sans-serif;cursor:pointer}.ds-nav button:hover{background:#ffffff0a;color:white}.ds-nav .ds-active{background:#096dce;color:white;box-shadow:inset 3px 0 white}.ds-nav button:focus-visible{outline:3px solid #67adf5;outline-offset:-3px}"
+    },
+    {
+      "name": "Updated Status",
+      "kind": "chip",
+      "refersTo": "status-updated",
+      "description": "写回并验证成功的订单结果。",
+      "html": "<span class=\"ds-updated\">已更新</span>",
+      "css": ".ds-updated{display:inline-flex;padding:3px 8px;border:1px solid #91d5ff;border-radius:4px;background:#e6f7ff;color:#0967ad;font:11px \"Microsoft YaHei\",sans-serif}"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "监控提单总数概览；示例保留未加载占位符。",
+      "html": "<div class=\"ds-stat\"><span>监控提单总数</span><strong>—</strong><small>WPS 共享表格</small></div>",
+      "css": ".ds-stat{display:flex;flex-direction:column;gap:13px;min-height:138px;padding:21px 24px;border-radius:8px;background:white;box-shadow:0 2px 8px #00152907;font:14px \"Microsoft YaHei\",sans-serif;color:#646970}.ds-stat strong{font-size:32px;line-height:1;font-weight:650;color:#262626;font-variant-numeric:tabular-nums}.ds-stat small{font-size:11px;line-height:1.6}"
+    }
+  ],
+  "narrative": {
+    "northStar": "参考 HTML 的业务控制台",
+    "overview": "用户提供的 `2版.html` 是本轮改版的视觉依据。系统采用深蓝导航、浅灰画布、白色统计卡与数据工作区，保持业务表格清晰、操作直接。这一名称用于描述已实现界面，不代表新增品牌口号。\n\n数据状态、同步进度与异常说明优先于装饰。页面呈现后端返回的真实任务和订单结果；尚未同步时保留明确的空状态与占位符。\n",
+    "keyCharacteristics": [
+      "深蓝侧栏与白色顶栏形成稳定导航框架。",
+      "四张白色统计卡提供快速概览。",
+      "蓝色承载操作和更新结果，绿色与红色表达核对与异常。",
+      "实时数据、历史变更和系统运行记录分别可达。"
+    ],
+    "rules": [
+      {
+        "name": "The Verified Update Rule",
+        "body": "只有写回并验证成功的订单才显示“已更新”；查询失败保留旧值，写入异常提示重新读取确认。",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do 沿用用户参考 HTML 确立的深蓝导航、蓝色操作、浅灰画布与白色工作区。",
+      "Do 将任务和订单状态同时表达为文字与颜色。",
+      "Do 保留键盘焦点、小屏横向表格滚动和减少动画支持。"
+    ],
+    "donts": [
+      "Don't 把未执行、查询失败或写入待确认显示为已更新。",
+      "Don't 将已被本轮参考样式替换的绿色主操作重新作为当前视觉规范。"
+    ]
+  }
+}

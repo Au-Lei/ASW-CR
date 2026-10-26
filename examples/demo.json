@@ -1,0 +1,8 @@
+{
+  "orders": [
+    {"order_no": "DEMO-CHANGED", "original_etd": "2026-10-21", "latest_etd": null},
+    {"order_no": "DEMO-SAME", "original_etd": "2026-10-21", "latest_etd": null},
+    {"order_no": "DEMO-RESTORED", "original_etd": "2026-10-21", "latest_etd": "2026-10-26"}
+  ],
+  "results": {"DEMO-CHANGED": "2026-10-26", "DEMO-SAME": "2026-10-21", "DEMO-RESTORED": "2026-10-21"}
+}

@@ -8,6 +8,27 @@ from etd_sync.evergreen import EvergreenClient
 
 
 class BatchTests(unittest.IsolatedAsyncioTestCase):
+    async def test_global_pacing_rechecks_early_timer_wakeup(self):
+        original_sleep = asyncio.sleep
+        woke_early = False
+        starts = []
+        async def sleep(delay):
+            nonlocal woke_early
+            if delay > 0 and not woke_early:
+                woke_early = True
+                return
+            await original_sleep(delay)
+        async def fetch(number, lane):
+            return number
+        async def result(*args):
+            pass
+        with patch('etd_sync.batch.asyncio.sleep', side_effect=sleep):
+            await asyncio.wait_for(query_batch([(0, 'A'), (1, 'B')], fetch,
+                lambda i: starts.append(time.perf_counter()), result,
+                concurrency=2, interval=.02), timeout=1)
+        self.assertTrue(woke_early)
+        self.assertGreaterEqual(starts[1] - starts[0], .019)
+
     async def test_bounded_out_of_order_queries_and_serial_writes(self):
         active = peak = writing = write_peak = 0
         seen, completed, starts = {}, [], []

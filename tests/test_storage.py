@@ -2,6 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -46,7 +47,7 @@ class StorageTests(unittest.TestCase):
     def test_legacy_database_recovers_running_task_without_schema_migration(self):
         # Use the original two-table JSON format, bypassing the new store entirely.
         item = dict(order_no='TEST', status='querying')
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('INSERT INTO jobs VALUES (?,?)',
                        ('old', json.dumps({**self.job, 'id': 'old', 'status': 'running', 'items': [item]})))
             db.execute('INSERT INTO state VALUES (1,?)', (json.dumps([item]),))
@@ -55,7 +56,7 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(snapshot['jobs'][0]['status'], 'interrupted')
         self.assertEqual(snapshot['jobs'][0]['items'][0]['status'], 'interrupted')
         self.assertEqual(snapshot['orders'][0]['status'], 'interrupted')
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db:
             tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         self.assertEqual(tables, {'jobs', 'state'})
 

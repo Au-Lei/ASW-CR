@@ -24,7 +24,8 @@ def app_paths(desktop=False):
     if os.environ.get('ETD_HOME'):
         home = Path(os.environ['ETD_HOME']).expanduser().resolve()
     elif desktop or getattr(sys, 'frozen', False):
-        home = Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local')) / 'ASW-CR'
+        local_data = os.environ.get('LOCALAPPDATA')
+        home = (Path(local_data) if local_data else Path.home() / 'AppData' / 'Local') / 'ASW-CR'
     else:
         home = resources
     return AppPaths(resources, home)

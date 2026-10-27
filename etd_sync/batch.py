@@ -26,9 +26,11 @@ async def query_batch(entries, fetch, on_start, on_result, *, concurrency=2, int
             except asyncio.QueueEmpty:
                 return
             async with pace_lock:
-                await asyncio.sleep(max(0, next_start - time.perf_counter()))
-                next_start = time.perf_counter() + interval
+                # Windows event-loop timers may wake early; recheck the deadline.
+                while (remaining := next_start - time.perf_counter()) > 0:
+                    await asyncio.sleep(remaining)
                 on_start(index)
+                next_start = time.perf_counter() + interval
             started = time.perf_counter()
             try:
                 result, error = await fetch(number, lane), None

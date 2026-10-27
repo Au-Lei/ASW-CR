@@ -35,6 +35,14 @@ class WebTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_javascript_mime_ignores_windows_file_associations(self):
+        with patch('mimetypes.guess_type', return_value=('text/plain', None)):
+            for filename in ('console.js', 'console-model.mjs'):
+                response = self.client.get('/static/' + filename)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.mimetype, 'text/javascript')
+                response.close()
+
     def submit(self, mode='sync'):
         return self.client.post('/api/jobs', json={'mode': mode}, headers={'X-CSRF-Token': self.token})
 

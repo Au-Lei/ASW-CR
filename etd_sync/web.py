@@ -28,6 +28,9 @@ def create_app(config=None, console=None, instance_id=None):
 
     @app.after_request
     def headers(response):
+        # Windows registry MIME associations may classify JS modules as text/plain.
+        if request.endpoint == 'static' and request.path.endswith(('.js', '.mjs')):
+            response.mimetype = 'text/javascript'
         response.headers['Cache-Control'] = 'no-store'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"

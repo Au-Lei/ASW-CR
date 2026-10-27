@@ -47,7 +47,11 @@ def self_test():
                     page = browser.new_page()
                     errors = []
                     page.on('pageerror', lambda error: errors.append(str(error)))
-                    page.goto(server.url)
+                    page.on('console', lambda message: errors.append(message.text)
+                            if message.type == 'error' else None)
+                    with page.expect_response(lambda response: response.url.endswith('/api/state')
+                                              and response.status == 200):
+                        page.goto(server.url)
                     page.locator('#read-button').click()
                     expect(page.locator('#orders-body tr')).to_have_count(1)
                     page.locator('#sync-button').click()
@@ -58,6 +62,9 @@ def self_test():
                     assert not errors, errors
                     assert fake.order['latest_etd'] == '2026-10-26'
                     checks.extend(['bundled-chromium', 'templates-css-es-modules', 'offline-sync', 'history', 'sqlite'])
+                except Exception as exc:
+                    raise RuntimeError(f'{exc}\nBrowser errors: {errors}\n'
+                                       f'Offline state: {console.snapshot()}') from exc
                 finally:
                     browser.close()
         finally:

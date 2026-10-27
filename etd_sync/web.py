@@ -9,18 +9,21 @@ from flask import Flask, jsonify, render_template, request
 
 # Preserve existing imports: from etd_sync.web import Console.
 from .service import Console
+from .paths import app_paths
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def create_app(config=None, console=None):
-    load_dotenv(ROOT / '.env')
-    config = dict(os.environ) if config is None else config
+def create_app(config=None, console=None, instance_id=None):
+    paths = app_paths()
+    if config is None:
+        load_dotenv(paths.config)
+        config = dict(os.environ)
     app = Flask(__name__, template_folder='templates', static_folder='static')
     app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024
     app.config['TRUSTED_HOSTS'] = ['127.0.0.1', 'localhost', '[::1]']
     csrf = secrets.token_urlsafe(32)
-    service = console or Console(ROOT / 'data' / 'console.sqlite3', config)
+    service = console or Console(paths.database, config)
     app.extensions['console'] = service
 
     @app.after_request
@@ -37,6 +40,10 @@ def create_app(config=None, console=None):
     @app.get('/api/state')
     def state():
         return jsonify(service.snapshot())
+
+    @app.get('/api/health')
+    def health():
+        return jsonify(app='ASW-CR', instance_id=instance_id)
 
     @app.post('/api/jobs')
     def start():

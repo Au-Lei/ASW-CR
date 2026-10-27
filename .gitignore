@@ -19,3 +19,6 @@ release/
 htmlcov/
 .vscode/
 .idea/
+build/
+dist/
+*.spec

@@ -1,0 +1,80 @@
+name: Windows desktop
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/local-improvements]
+    paths:
+      - 'etd_sync/**'
+      - 'start_desktop.py'
+      - 'requirements*.txt'
+      - 'deploy/build_windows.py'
+      - 'docs/WINDOWS.md'
+      - 'wps/**'
+      - 'tests/**'
+      - '.github/workflows/windows-desktop.yml'
+permissions:
+  contents: read
+concurrency:
+  group: windows-desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: '0'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install desktop dependencies
+        run: python -m pip install -r requirements-desktop.txt
+      - name: Offline regression tests
+        run: |
+          python -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tests/test_bridge.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tests/test_console_model.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Bundle Chromium headless shell
+        run: python -m playwright install chromium --only-shell
+      - name: Build portable EXE and ZIP
+        run: python deploy/build_windows.py --commit $env:GITHUB_SHA
+      - name: Frozen executable offline smoke test
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path 'release/windows/ASW-CR/ASW-CR.exe').Path
+          $result = Join-Path $env:RUNNER_TEMP 'asw-cr-self-test.json'
+          $env:ETD_HOME = Join-Path $env:RUNNER_TEMP 'asw-cr-isolated-home'
+          $env:PLAYWRIGHT_BROWSERS_PATH = 'Z:\not-installed'
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Set-Location $env:RUNNER_TEMP
+          $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', ('"' + $result + '"')) -Wait -PassThru
+          if (!(Test-Path $result)) { throw 'EXE did not write a self-test report' }
+          Get-Content $result -Encoding utf8
+          $report = Get-Content $result -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($process.ExitCode -ne 0 -or !$report.ok -or !$report.frozen) { throw 'Packaged EXE failed offline smoke test' }
+      - name: Upload Windows portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASW-CR-Windows-x64
+          path: |
+            release/ASW-CR-Windows-x64.zip
+            release/ASW-CR-Windows-x64.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Upload self-test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-self-test-report
+          path: ${{ runner.temp }}/asw-cr-self-test.json
+          if-no-files-found: ignore

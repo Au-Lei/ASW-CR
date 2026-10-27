@@ -30,6 +30,10 @@ macOS / Linux 本地开发见 [跨平台启动说明](docs/DEVELOPMENT.md#macos-
 
 当前没有定时同步、自动运价判断、域名、HTTPS 网站入口或独立网页登录。已连接的访问者共享数据和同步权限。
 
+## Windows 免安装版
+
+普通使用者可下载 Windows desktop 工作流生成的 `ASW-CR-Windows-x64` 安装包，完整解压后双击 `ASW-CR.exe`。首次通过配置窗口填写 WPS，之后从托盘打开或退出；配置与历史保存在 `%LOCALAPPDATA%\ASW-CR`。详见 [Windows 使用说明](docs/WINDOWS.md)。开发版与云端启动方式保持原样。
+
 ## 新电脑快速启动（Windows）
 
 先安装 Git、Python 3.12；Node.js 用于 JavaScript 测试，不是运行网页的必需项。

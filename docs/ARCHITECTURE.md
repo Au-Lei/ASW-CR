@@ -54,3 +54,7 @@ Windows 使用 `.venv\Scripts\python.exe` 替换 Python 路径。浏览器测试
 业务规模增加后，可测量全部历史的加载成本，再考虑历史分页或独立索引表；当前缓存减少空闲轮询的重复工作，但写入后的首次快照仍需计算历史。大量订单的前端渲染也应先测量再优化。本轮不引入多进程、多副本或新的数据库结构。
 
 新增功能优先复用现有流程：日期规则放 `dates.py`，订单筛选放 `orders.py`，持久化放 `storage.py`，前端展示计算放 `console-model.mjs`。避免在 HTTP 路由或大渲染函数里继续累积业务分支。
+
+## Windows 桌面分发
+
+`paths.py` 分离只读资源与可写数据；普通开发模式仍使用项目目录，冻结 EXE 使用用户数据目录。`desktop.py` 管理 Tk 主线程与托盘，`desktop_config.py` 验证并原子保存配置，`desktop_runtime.py` 管理实例锁和本地随机端口服务，`desktop_check.py` 提供不访问真实外网的包内自检。构建脚本使用明确的源码清单，服务端 requirements 不增加桌面依赖。

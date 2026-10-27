@@ -4,12 +4,15 @@
 
 日常使用只需点击 **手动同步数据**。支持 Windows 本地开发和 Ubuntu 云服务器运行。
 
+macOS / Linux 本地开发见 [跨平台启动说明](docs/DEVELOPMENT.md#macos--linux)。
+
 ## 文档入口
 
 | 你要做什么 | 阅读文档 |
 |---|---|
 | 在另一台电脑继续开发 | [换电脑开发指南](docs/DEVELOPMENT.md) |
-| 了解代码、当前进度与后续优化 | [开发交接与架构说明](docs/HANDOFF.md) |
+| 了解代码职责与重构后的维护方式 | [代码结构与维护约定](docs/ARCHITECTURE.md) |
+| 了解当前进度与业务约定 | [开发交接说明](docs/HANDOFF.md) |
 | 配置 WPS、排查日期与同步问题 | [WPS 与业务规则](docs/WPS.md) |
 | 安装、维护云端服务及备份 | [Ubuntu 原生部署](deploy/README.md) |
 | 了解备用 Docker 方案 | [Docker 部署参考](deploy/DOCKER.md) |
@@ -100,6 +103,7 @@ WPS 第1行为表头：A列提单号/订舱号，B列 `ETD（原BC）`，C列 `V
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 node tests/test_bridge.cjs
+node tests/test_console_model.mjs
 node --check etd_sync/static/console.js
 ```
 
@@ -119,14 +123,17 @@ GitHub Actions 在 push / pull request 时运行离线 Python 与 JavaScript 检
 
 ```text
 etd_sync/
-  web.py                 Web API、后台任务、SQLite持久化
+  web.py                 Web API 与服务启动
+  service.py             后台任务与同步流程
+  storage.py             SQLite、恢复与快照缓存
+  orders.py              订单合并、选中目标、历史筛选
   evergreen.py           浏览器会话、查询、结果页ETD提取
   batch.py               有界并发、全局节流、串行处理结果
   wps.py                 WPS AirScript HTTP客户端
   dates.py               日期解析与更新判定
   __main__.py            命令行入口
   templates/index.html   界面结构
-  static/                样式与浏览器交互
+  static/                样式、DOM交互与纯展示模型（console-model.mjs）
 wps/etd_bridge.js         粘贴到WPS的配套脚本
 tests/                   离线测试、网页测试与只读实测
 deploy/                  部署、访问脚本、打包与备份
@@ -140,3 +147,9 @@ start_web.py             本地启动入口
 一次仅运行一个服务进程/同步任务，不支持多副本部署。不同任务之间、不同开发电脑之间也不要同时写同一张正式表格。查询失败保留旧日期；写入超时可能已被 WPS 接收，应重新读取确认，不能简单认定未修改。
 
 官网结构、访问限制或 WPS 权限变化时可能需要维护查询器。仓库不包含原始入货通知、真实订单截图或完整聊天历史。继续开发请从 [HANDOFF.md](docs/HANDOFF.md) 开始。
+
+历史变更页仅展示成功写回且最新 ETD 晚于该次读取的 Valid to 的记录；不再显示同步任务列表。Valid to 缺失、无效或旧记录未采集该字段时不展示。启用前需更新 WPS 中的 `wps/etd_bridge.js` 脚本。
+
+WPS 的 D 列之后还需添加唯一的“当前状态”列。手动同步后按北京时间更新 ETD未变更 / ETD已变更 / 托班到下一批次 / 已完成；状态单独变化不会新增 ETD 变更历史，详见 [WPS 规则](docs/WPS.md#当前状态手动同步时更新)。
+
+支持单票与勾选同步：可输入 WPS 完整单号、点击行内“单票同步”，或勾选后点击“同步选中订单”。原“手动同步数据”仍同步全部订单。指定同步先重新读取 WPS，只查询和写回目标订单。

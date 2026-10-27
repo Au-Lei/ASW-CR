@@ -22,6 +22,34 @@ python -m venv .venv
 
 若Windows只有 `py` 命令，第一步改用 `py -3.12 -m venv .venv`；后面的虚拟环境路径保持不变。无需执行Activate.ps1。
 
+### macOS / Linux
+
+安装 Git 和 Python 3.12 后，在终端执行（已克隆则直接进入项目目录）：
+
+```bash
+git clone https://github.com/Au-Lei/ASW-CR.git
+cd ASW-CR
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m playwright install chromium
+.venv/bin/python -m etd_sync --demo
+```
+
+启动网页用 `.venv/bin/python start_web.py`，访问 `http://127.0.0.1:8000`；终端中按 Ctrl+C 停止服务。
+首次配置可用 `cp .env.example .env`，再用编辑器填写自己的配置。未填写配置也能运行离线测试；CLI 演示不读写 WPS。
+Linux 若缺少浏览器系统库，按 [Ubuntu 部署说明](../deploy/README.md) 安装。
+
+离线验证：
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+node tests/test_bridge.cjs
+node tests/test_console_model.mjs
+node --check etd_sync/static/console.js
+```
+
+后续文档中的 `.venv\\Scripts\\python.exe`，在 macOS / Linux 上替换为 `.venv/bin/python`。
+
 ## 2. 迁移私密配置
 
 仓库只提供 `.env.example`。以下内容被Git排除，不会自动下载：
@@ -54,6 +82,7 @@ python -m venv .venv
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 node tests/test_bridge.cjs
+node tests/test_console_model.mjs
 node --check etd_sync/static/console.js
 ```
 
@@ -102,3 +131,5 @@ git push -u origin codex/improve-etd
 ## 7. 线上发布前
 
 本地测试通过，不等于云端已更新。云端目录是 `/opt/etd`，服务名是 `etd-sync`。发布步骤见 [部署说明](../deploy/README.md)。不要用本机数据库或首次迁移包覆盖服务器现有data目录。
+
+重构后的模块职责与维护约定见 [ARCHITECTURE.md](ARCHITECTURE.md)。前端使用浏览器原生模块，部署时完整复制 static 目录（包括 `.mjs` 文件），无需 npm 构建。

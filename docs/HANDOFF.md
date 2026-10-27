@@ -4,7 +4,7 @@
 
 海运代理收到入货通知后，需要追踪长荣最新ETD。原始ETD来自通知，必须保留；官网ETD发生变化时，将最新日期写到WPS同一行，业务人员据此判断后续处理。
 
-当前范围：手动点击查询、写回、统计、历史与异常提示。没有自动运价核算或自动跨周核价；Valid to列目前不参与判断。不要把参考原型里的同周/跨周示例统计误认为已实现功能。
+当前范围：手动点击查询、写回、统计、历史与异常提示。没有自动运价核算或自动跨周核价；Valid to 列用于筛选历史页：仅展示已成功变更且最新 ETD 严格超过该次读取的 Valid to 的记录，不影响写回判定。不要把参考原型里的同周/跨周示例统计误认为已实现功能。
 
 ## 当前进度（2026-10-26交接）
 
@@ -33,19 +33,23 @@
 
 | 文件 | 重点 |
 |---|---|
-| `etd_sync/web.py` | Flask路由、任务互斥、SQLite初始化/恢复、同步业务 |
+| `etd_sync/web.py` | Flask 路由与 Waitress 启动 |
+| `etd_sync/service.py` | 任务互斥、生命周期、同步和写回流程 |
+| `etd_sync/storage.py` | SQLite 事务、初始化/恢复、快照缓存 |
+| `etd_sync/orders.py` | 订单合并、目标选择与历史筛选 |
 | `etd_sync/batch.py` | 查询并发上限、全局节流、串行结果回调 |
 | `etd_sync/evergreen.py` | Chromium生命周期、Cookie弹窗、输入查询、表头定位 |
 | `etd_sync/wps.py` | AirScript同步请求、响应判定、凭证脱敏 |
 | `etd_sync/dates.py` | 完整日期/序列日期解析、旧月日文本、更新规则 |
 | `wps/etd_bridge.js` | WPS侧表头校验、按单号定位、原值校验、D列写回 |
-| `etd_sync/static/console.js` | 状态轮询、筛选、历史、日志、导航和计时 |
+| `etd_sync/static/console.js` | 状态轮询、DOM 绘制、用户操作和导航 |
+| `etd_sync/static/console-model.mjs` | 可独立测试的展示数据、筛选及日志生成 |
 | `tests/test_batch.py` | 并发/乱序/节流/浏览器复用与释放 |
 | `tests/test_web.py` | 结果归属、写入失败、重复任务、外部改动与恢复 |
 
 ## 持久化和恢复
 
-数据库 `data/console.sqlite3`：jobs表存每次任务JSON，state表存订单快照JSON。API展示最近30个任务；数据库并不会只保存30条。服务重启会把遗留running任务标为interrupted，并修正订单当前状态。
+数据库 `data/console.sqlite3`：jobs表存每次任务JSON，state表存订单快照JSON。API 返回最近 30 个任务供进度和运行日志使用；历史页通过独立 changes 字段展示所有符合 Valid to 条件的成功变更，不展示同步任务列表。数据库并不会只保存 30 条。服务重启会把遗留running任务标为interrupted，并修正订单当前状态。
 
 不要在服务运行时另建Console实例指向同一正式数据库：初始化会恢复/中断标记，可能误影响正在运行的任务。离线测试必须用临时数据库。当前单进程锁不支持多进程、多容器实例或多台服务器共同写同一WPS。
 
@@ -81,3 +85,7 @@
 ## 继续优化前的检查
 
 先跑离线测试，确认 `.env` 是否指向正式表格；先在测试表格联调。完成业务或解析修改后要核对真实官网样例，但不要随意多次批量访问。涉及云端时先备份、等任务结束、仅更新代码，保留.env/data/访问账号。
+
+## 2026-10-27 结构整理
+
+职责边界、保留的行为约束及新增验证见 [ARCHITECTURE.md](ARCHITECTURE.md)。没有数据库迁移；新增模块随整个 etd_sync 目录部署。运行时仍由单个 Console/ConsoleStore 实例拥有数据库，不能绕过存储实例从其他进程修改数据库并依赖缓存即时刷新。

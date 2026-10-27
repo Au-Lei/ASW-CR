@@ -36,3 +36,16 @@ def needs_update(original, saved, latest):
     if original is None or latest is None:
         raise ValueError("原始 ETD 和官网 ETD 不能为空")
     return latest != saved and (latest != original or saved is not None)
+
+
+def current_status(original, latest, valid_to, today):
+    """Business status, independent of whether this sync needs an ETD write."""
+    if original is None or latest is None:
+        raise ValueError('原始 ETD 和最新 ETD 不能为空')
+    if today > latest:
+        return '已完成'
+    if valid_to is None:
+        raise ValueError('Valid to 为空，无法判断当前状态，请填写完整日期')
+    if latest > valid_to:
+        return '托班到下一批次'
+    return 'ETD已变更' if latest != original else 'ETD未变更'

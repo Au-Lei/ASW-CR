@@ -46,9 +46,27 @@ class WpsClient:
             raise RuntimeError('WPS 返回格式不正确，请确认已安装配套 AirScript') from None
 
     def read(self):
-        return self.call('read')['orders']
+        orders = self.call('read')['orders']
+        if isinstance(orders, list) and any(not isinstance(o, dict) or
+                'valid_to' not in o or 'current_status' not in o for o in orders):
+            raise RuntimeError('WPS 脚本版本过旧，请将最新版 wps/etd_bridge.js 完整替换到 AirScript 并保存，需返回 Valid to 和当前状态')
+        return orders
 
-    def update(self, order, latest):
-        return self.call('update', order_no=order['order_no'],
+    def update(self, order, latest, current_status=None):
+        extra = {} if current_status is None else dict(current_status=current_status,
+            expected_valid_to=order.get('valid_to'), expected_status=order.get('current_status'))
+        result = self.call('update', order_no=order['order_no'],
                          expected_original=order['original_etd'],
-                         expected_latest=order['latest_etd'], latest_etd=latest.isoformat())
+                         expected_latest=order['latest_etd'], latest_etd=latest.isoformat(), **extra)
+        if current_status is not None and result.get('current_status') != current_status:
+            raise RuntimeError('当前状态写入未确认，请更新 WPS 脚本后重新读取确认')
+        return result
+
+    def update_status(self, order, current_status):
+        result = self.call('update_status', order_no=order['order_no'],
+            expected_original=order['original_etd'], expected_latest=order['latest_etd'],
+            expected_valid_to=order.get('valid_to'), expected_status=order.get('current_status'),
+            current_status=current_status)
+        if result.get('current_status') != current_status:
+            raise RuntimeError('当前状态写入未确认，请重新读取 WPS')
+        return result

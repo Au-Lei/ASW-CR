@@ -14,6 +14,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def private_bundle_file(relative):
+    path = relative.as_posix().lower()
+    # certifi's public trust store is required for HTTPS, and contains no private key.
+    if path == '_internal/certifi/cacert.pem':
+        return False
+    return relative.name.lower() == '.env' or relative.suffix.lower() in ('.sqlite3', '.db', '.pem', '.key')
+
+
 def stage_sources(stage):
     shutil.copytree(ROOT / 'etd_sync', stage / 'etd_sync',
                     ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
@@ -67,7 +75,7 @@ def build(commit):
         for path in sorted(bundle.rglob('*')):
             if not path.is_file():
                 continue
-            if path.name == '.env' or path.suffix in ('.sqlite3', '.db', '.pem', '.key'):
+            if private_bundle_file(path.relative_to(bundle)):
                 raise RuntimeError('发布目录包含不应分发的配置或业务文件：' + path.name)
             output.write(path, Path('ASW-CR') / path.relative_to(bundle))
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from deploy.build_windows import stage_sources
+from deploy.build_windows import stage_sources, private_bundle_file
 from etd_sync.desktop import DesktopApp
 from etd_sync.desktop_config import DEFAULTS, read_config, save_config, validate_config
 from etd_sync.desktop_runtime import InstanceLock, existing_url
@@ -112,6 +112,12 @@ class DesktopTests(unittest.TestCase):
         self.assertTrue((stage / '.env.example').is_file())
         self.assertTrue((stage / 'etd_sync' / 'static' / 'console-model.mjs').is_file())
         self.assertTrue((stage / 'wps' / 'etd_bridge.js').is_file())
+
+    def test_bundle_allows_public_ca_but_blocks_private_keys_and_data(self):
+        self.assertFalse(private_bundle_file(Path('_internal/certifi/cacert.pem')))
+        for path in ('.env', 'data/console.sqlite3', 'private.pem', '_internal/private.KEY',
+                     'config/.ENV', '_internal/certifi/private.pem'):
+            self.assertTrue(private_bundle_file(Path(path)), path)
 
 
 if __name__ == '__main__':

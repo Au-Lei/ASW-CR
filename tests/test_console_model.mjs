@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {orderRows, filterOrders, numberCounts, runtimeLogs,
-  formatDate, formatTime, formatDuration} from '../etd_sync/static/console-model.mjs';
+  formatDate, formatTime, formatDuration, confirmedEtd} from '../etd_sync/static/console-model.mjs';
 
 test('selected sync retains the other orders and their previous query results', () => {
   const other = {order_no: 'OTHER', original_etd: '2026-10-21', latest_etd: null,
@@ -65,4 +65,39 @@ test('display formats preserve Excel dates and Beijing time strings', () => {
   assert.equal(formatDate(null), '—');
   assert.equal(formatTime('2026-10-27T12:00:00+08:00'), '2026-10-27 12:00:00');
   assert.equal(formatDuration(65), '1 分 5 秒');
+});
+
+
+test('missing-port warnings remain visible in runtime logs without becoming ETD updates', () => {
+  const job = {mode: 'sync', status: 'completed', created_at: '2026-10-28', items: [{
+    order_no: 'PORT', status: 'unchanged', ports_updated: ['pol'], warnings: ['目的港缺失'],
+    message: '港口已写回；目的港缺失，保留表格原值',
+  }]};
+  const entry = runtimeLogs([job]).find(log => log.message.startsWith('PORT'));
+  assert.equal(entry.level, 'WARN');
+  assert.match(entry.message, /保留表格原值/);
+  assert.equal(job.items[0].status, 'unchanged');
+});
+
+
+test('search covers both ports and the full remark, including old rows with missing fields', () => {
+  const rows = [{order_no: 'PORT', pol: 'Qingdao', pod: 'Nhava Sheva', remark: '首行\n尾部关键词', status: 'unchanged'},
+    {order_no: 'LEGACY', status: 'updated'}, {order_no: 'ZERO', remark: 0, status: 'unqueried'}];
+  for(const query of [' qINGdao ', 'SHEVA', '尾部关键词']) assert.deepEqual(filterOrders(rows,'all',query), [rows[0]]);
+  assert.deepEqual(filterOrders(rows,'updated','sheva'), []);
+  assert.deepEqual(filterOrders(rows,'all','0'), [rows[2]]);
+  assert.deepEqual(filterOrders(rows,'all',''), rows);
+  assert.deepEqual(filterOrders(rows,'all','undefined'), []);
+});
+
+test('only confirmed writes promote queried dates, including active job rows', () => {
+  const base={order_no:'A', latest_etd:'2026-10-25', queried_etd:'2026-10-31'};
+  assert.equal(confirmedEtd({...base,status:'failed',failure_stage:'write'}),'2026-10-25');
+  assert.equal(confirmedEtd({...base,status:'querying'}),'2026-10-25');
+  assert.equal(confirmedEtd({...base,status:'updated'}),'2026-10-31');
+  assert.equal(confirmedEtd({latest_etd:null,status:'unchanged',queried_etd:'2026-10-21'}),null);
+  const state={orders:[{...base,status:'waiting'}],jobs:[{mode:'sync',status:'running',items:[{...base,status:'updated'}]}]};
+  assert.equal(orderRows(state)[0].latest_etd,'2026-10-31');
+  state.jobs[0].items[0].status='failed';
+  assert.equal(orderRows(state)[0].latest_etd,'2026-10-25');
 });

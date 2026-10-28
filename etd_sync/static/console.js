@@ -1,10 +1,11 @@
 import {jobLabels, formatDate as date, formatTime as time, formatDuration as duration,
   countItems as count, numberCounts as countNumbers, orderRows, filterOrders,
-  runtimeLogs} from './console-model.mjs';
+  runtimeLogs, confirmedEtd} from './console-model.mjs';
 const $ = id => document.getElementById(id);
 const csrf = document.querySelector('meta[name="csrf-token"]').content;
 let state = {orders: [], jobs: []}, filter = 'all', pending = false, timer;
 const selectedNumbers = new Set();
+const expandedNotes = new Set();
 let visibleSelectable = [];
 const pageTitles = {realtime:'实时数据变更',history:'历史变更记录',logs:'系统运行记录',help:'使用说明'};
 function switchPage(page) {
@@ -18,6 +19,37 @@ function switchPage(page) {
 const labels = {updated:'已更新', unchanged:'无需变更', failed:'失败', querying:'查询中', waiting:'待查询', unqueried:'未查询', interrupted:'已中断'};
 
 const text = (tag, value, className) => { const el = document.createElement(tag); el.textContent = value; if(className) el.className = className; return el; };
+const displayText = value => value === null || value === undefined || value === '' ? '—' : String(value);
+function portCell(item, key, showQuery = false) {
+  const cell = text('td', '', 'port-cell');
+  cell.append(text('span', displayText(item[key]), 'port-name'));
+  const queried = item['queried_' + key];
+  if(showQuery && queried && String(queried).trim() !== String(item[key] ?? '').trim()) cell.append(text('span', '官网查得 '+queried, 'subline'));
+  return cell;
+}
+function remarkCell(item, key) {
+  const cell = text('td', '', 'remark-cell');
+  const value = displayText(item.remark);
+  if(value.length <= 100 && value.split('\n').length <= 3) {
+    cell.append(text('div', value, 'remark-content'));
+    return cell;
+  }
+  const details=document.createElement('details');
+  details.open=expandedNotes.has(key);
+  const summary=text('summary', value.replace(/\s+/g,' ').slice(0,60)+'… · 展开/收起');
+  summary.dataset.focusKey='remark:'+key;
+  summary.setAttribute('aria-label', '展开或收起 '+item.order_no+' 的完整备注');
+  details.append(summary,text('div',value,'remark-content'));
+  summary.addEventListener('click',event=>{
+    // Save immediately: a search or polling render can precede the async toggle event.
+    event.preventDefault();
+    details.open=!details.open;
+    if(details.open) expandedNotes.add(key); else expandedNotes.delete(key);
+  });
+  cell.append(details);
+  return cell;
+}
+
 function badge(status) { return text('span',labels[status] || status,'badge '+status); }
 function showError(message) { $('error').textContent=message; $('error').hidden=!message; }
 function render() {
@@ -81,14 +113,17 @@ function renderOrders({busy,lastSync,numberCounts}) {
     choice.disabled=busy || duplicate;choice.setAttribute('aria-label','选择订单 '+n);choice.dataset.focusKey='select:'+n;
     choice.addEventListener('change',()=>{if(choice.checked) selectedNumbers.add(n);else selectedNumbers.delete(n);render();});
     const choiceCell=text('td','','selection-cell');choiceCell.append(choice);row.append(choiceCell);
-    const number=text('td',item.order_no);if(item.pol) number.append(text('span',item.pol,'subline'));row.append(number);
-    row.append(text('td',date(item.original_etd),'date'),text('td',date(item.before_etd),'date'));
-    const latest=text('td',date(item.queried_etd),item.status==='updated'?'date new-date':'date');
-    if(!item.queried_etd && item.latest_etd) latest.append(text('span','表格现值 '+date(item.latest_etd),'subline'));
-    row.append(latest,text('td',date(item.valid_to),'date'),text('td',item.current_status || '—'));
+    row.append(text('td',item.order_no,'order-number'),portCell(item,'pol',true),portCell(item,'pod',true),
+      text('td',date(item.original_etd),'date'),text('td',date(item.valid_to),'date'));
+    const latest=text('td',date(confirmedEtd(item)),item.status==='updated'?'date new-date':'date');
+    if(item.queried_etd) {
+      latest.append(text('span','官网查询 '+date(item.queried_etd),'subline'),
+        text('span','同步前 '+date(item.before_etd),'subline'));
+    }
+    row.append(latest,text('td',item.current_status || '—'),remarkCell(item,JSON.stringify(['orders',n])));
     const result=document.createElement('td');const tag=badge(item.status);
     if(item.failure_stage==='write') tag.textContent='写入待确认';
-    result.append(tag);if(['failed','interrupted'].includes(item.status) || item.status==='unqueried' && item.message) result.append(text('span',item.message,'subline'));row.append(result,text('td',time(item.last_checked),'small'));
+    result.append(tag);if(['failed','interrupted'].includes(item.status) || item.status==='unqueried' && item.message || item.ports_updated?.length || item.warnings?.length) result.append(text('span',item.message,'subline'));row.append(result,text('td',time(item.last_checked),'small'));
     const action=text('button','单票同步','text-button');action.type='button';action.disabled=busy || duplicate;
     action.setAttribute('aria-label','同步订单 '+n);action.dataset.focusKey='sync:'+n;
     if(duplicate) action.title='单号重复，请先在 WPS 核对';
@@ -96,7 +131,7 @@ function renderOrders({busy,lastSync,numberCounts}) {
   }));
   $('empty').hidden=visible.length>0;
   $('empty-title').textContent=source.length?'没有符合条件的订单':'暂无订单数据';
-  if(source.length) $('empty-message').textContent='可以切换筛选条件，或尝试其他单号。';
+  if(source.length) $('empty-message').textContent='可以切换筛选条件，或搜索单号、港口和备注。';
   else if(state.jobs.length) $('empty-message').textContent='共享表格暂未读取到订单。请检查单号列，再点击“读取订单”。';
 }
 
@@ -105,9 +140,10 @@ function renderHistory() {
   $('changes-body').replaceChildren(...changes.map(item=>{
     const row=document.createElement('tr');
     row.classList.add('etd-updated');
-    row.append(text('td',time(item.changed_at)),text('td',item.order_no),
+    row.append(text('td',time(item.changed_at)),text('td',item.order_no),portCell(item,'pol'),portCell(item,'pod'),
       text('td',date(item.original_etd)),text('td',date(item.before_etd)),
-      text('td',date(item.valid_to)),text('td',date(item.queried_etd),'new-date'));
+      text('td',date(item.valid_to)),text('td',date(item.queried_etd),'new-date'),
+      remarkCell(item,JSON.stringify(['history',item.job_id,item.order_no,item.changed_at])));
     const status=document.createElement('td');status.append(badge('updated'));row.append(status);return row;
   }));
   $('changes-empty').hidden=changes.length>0;

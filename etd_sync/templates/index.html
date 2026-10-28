@@ -23,29 +23,29 @@
 <section id="page-realtime" class="page-section">
 <div class="summary" aria-label="订单与最近一次同步统计">
 <div><span class="stat-label">监控提单总数</span><strong id="stat-total">—</strong><span class="stat-detail" id="sheet-name">WPS 共享表格</span></div>
-<div><span class="stat-label">ETD 未变更</span><strong class="green" id="stat-unchanged">—</strong><span class="stat-detail">已核对，无需写入</span></div>
+<div><span class="stat-label">ETD 未变更</span><strong class="green" id="stat-unchanged">—</strong><span class="stat-detail">已核对，ETD 无需变更</span></div>
 <div><span class="stat-label">ETD 已更新</span><strong class="blue" id="stat-updated">—</strong><span class="stat-detail">已写回 WPS 并验证</span></div>
 <div><span class="stat-label">查询 / 写入失败</span><strong class="red" id="stat-failed">—</strong><span class="stat-detail">查询保留旧值，写入异常待确认</span></div>
 </div>
 <section class="task-panel" aria-label="同步进度" aria-live="polite">
 <div class="task-top"><div class="task-copy"><span class="status-mark" id="task-mark"></span><strong id="task-title">准备就绪</strong><span id="task-message">点击“手动同步数据”，查询并更新共享表格。</span></div><span id="task-count" class="task-count"></span></div>
 <progress id="progress" value="0" max="100" aria-label="本次同步进度" hidden></progress>
-<div class="task-footer"><span id="last-sync">尚未执行同步</span><span>原始 ETD 保持不变，仅更新最新 ETD。</span></div>
+<div class="task-footer"><span id="last-sync">尚未执行同步</span><span>原始 ETD、Valid to 和备注保留；同步更新港口、最新 ETD 与当前状态。</span></div>
 </section>
 <div class="toolbar"><div><h2>船期数据总览</h2><span class="toolbar-note">查询最新船期，查看本次同步的变化与异常</span></div><div class="actions"><button id="read-button" class="button secondary" type="button">读取订单</button><button id="sync-button" class="button primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17"/></svg><span>手动同步数据</span></button></div></div>
 <form id="single-sync-form" class="single-sync"><label for="single-number">单票同步</label><input id="single-number" type="text" maxlength="200" placeholder="输入 WPS 中的完整单号" required autocomplete="off"><button id="single-sync-button" class="button secondary" type="submit">同步此单</button><span class="small">查询官网并按现有规则写回 WPS</span></form>
 <section class="workspace" aria-labelledby="orders-title">
-<div class="workspace-heading"><div><h2 id="orders-title">订单列表</h2><span class="small" id="table-note">数据以最近一次读取为准</span></div><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" id="search" aria-label="搜索单号" placeholder="输入单号搜索"></label></div>
+<div class="workspace-heading"><div><h2 id="orders-title">订单列表</h2><span class="small" id="table-note">数据以最近一次读取为准</span></div><label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" id="search" aria-label="搜索单号、港口或备注" placeholder="搜索单号、港口或备注"></label></div>
 <div class="table-toolbar"><div class="filters" role="group" aria-label="筛选订单"><button type="button" class="filter active" data-filter="all" aria-pressed="true">全部订单 <span id="count-all">0</span></button><button type="button" class="filter" data-filter="updated" aria-pressed="false">已更新 <span id="count-updated">0</span></button><button type="button" class="filter" data-filter="failed" aria-pressed="false">异常订单 <span id="count-failed">0</span></button></div><span id="result-count" class="small"></span></div>
 <div class="selection-bar"><span id="selection-count" class="small">已选 0 票</span><button id="selected-sync-button" class="button primary" type="button" disabled>同步选中订单</button><button id="clear-selection" class="text-button" type="button" disabled>清空选择</button><span class="small">勾选跨筛选保留；“手动同步数据”始终同步全部订单</span></div>
-<div class="table-scroll"><table><thead><tr><th scope="col" class="selection-cell"><input id="select-visible" type="checkbox" aria-label="全选当前筛选订单"></th><th scope="col">提单 / 订舱号</th><th scope="col">原始 ETD</th><th scope="col">同步前 ETD</th><th scope="col">官网最新 ETD</th><th scope="col">Valid to</th><th scope="col">当前状态</th><th scope="col">同步状态</th><th scope="col">最近成功查询</th><th scope="col" class="row-action">操作</th></tr></thead><tbody id="orders-body"></tbody></table></div>
+<div class="table-scroll" tabindex="0" role="region" aria-label="订单表格，可横向滚动"><table class="orders-table"><thead><tr><th scope="col" class="selection-cell"><input id="select-visible" type="checkbox" aria-label="全选当前筛选订单"></th><th scope="col">提单 / 订舱号</th><th scope="col">起运港</th><th scope="col">目的港</th><th scope="col">ETD（原BC）</th><th scope="col">Valid to</th><th scope="col">ETD<span class="subline">表格现值 / 官网查询</span></th><th scope="col">当前状态</th><th scope="col">备注</th><th scope="col">同步结果</th><th scope="col">最近成功查询</th><th scope="col" class="row-action">操作</th></tr></thead><tbody id="orders-body"></tbody></table></div>
 <div class="empty-state" id="empty"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 8h20l6 6v26H11zM31 8v8h6M17 23h14M17 30h9"/></svg><h3 id="empty-title">暂无订单数据</h3><p id="empty-message">点击“读取订单”查看共享表格数据，<br>或点击“手动同步数据”完成查询与更新。</p></div>
-<div class="workspace-foot"><span><span class="dot green-dot"></span>已更新表示写入后验证成功</span><span>查询失败保留旧值；写入异常请重新读取确认</span></div>
+<div class="workspace-foot"><span><span class="dot green-dot"></span>已更新表示写入后验证成功</span><span>可横向滚动查看全部列；写入异常请重新读取确认</span></div>
 </section>
 </section>
 <section id="page-history" class="page-section" hidden>
-<div class="section-heading"><div><h2>历史变更记录</h2><p>仅展示成功写回且变更后 ETD 晚于 Valid to 的历史记录。</p></div><span class="small">北京时间</span></div>
-<div class="workspace"><div class="table-scroll"><table><thead><tr><th scope="col">发现时间</th><th scope="col">提单 / 订舱号</th><th scope="col">原始 ETD</th><th scope="col">同步前 ETD</th><th scope="col">Valid to</th><th scope="col">变更后 ETD</th><th scope="col">处理状态</th></tr></thead><tbody id="changes-body"></tbody></table></div><div class="simple-empty" id="changes-empty">暂无符合条件的变更记录。仅展示最新 ETD 超过 Valid to 的成功变更；Valid to 缺失或无效的记录不展示。</div></div>
+<div class="section-heading"><div><h2>历史变更记录</h2><p>仅展示成功写回且变更后 ETD 晚于 Valid to 的历史记录；港口、备注保留变更时快照。</p></div><span class="small">北京时间</span></div>
+<div class="workspace"><div class="table-scroll" tabindex="0" role="region" aria-label="历史变更表格，可横向滚动"><table class="history-table"><thead><tr><th scope="col">发现时间</th><th scope="col">提单 / 订舱号</th><th scope="col">起运港</th><th scope="col">目的港</th><th scope="col">原始 ETD</th><th scope="col">同步前 ETD</th><th scope="col">Valid to</th><th scope="col">变更后 ETD</th><th scope="col">备注（变更时）</th><th scope="col">处理状态</th></tr></thead><tbody id="changes-body"></tbody></table></div><div class="simple-empty" id="changes-empty">暂无符合条件的变更记录。仅展示最新 ETD 超过 Valid to 的成功变更；Valid to 缺失或无效的记录不展示。</div></div>
 </section>
 <section id="page-logs" class="page-section" hidden>
 <div class="section-heading"><div><h2>系统运行记录</h2><p>显示读取、查询与写回的实际结果，同步期间自动更新。</p></div><span class="small" id="log-count">0 条记录</span></div>
@@ -56,8 +56,9 @@
 <article class="help-document">
 <section><h3>这个工具能做什么？</h3><p>长荣货物 ETD 追踪系统面向海运代理业务人员，从 WPS 共享表格读取提单号或订舱号，查询长荣官网的装货港预计离港日期（ETD）。日期发生变化时，系统更新共享表格中的最新 ETD，保留原始 ETD，并展示统计、变更明细和查询结果，减少逐票人工核对。</p><p>目前采用手动同步，点击后才会查询；页面中的日期代表最近一次查询结果。</p></section>
 <section><h3>日常使用，三步完成</h3><ol class="help-steps"><li><strong>在 WPS 中录入订单</strong><p>填写单号和原始 ETD。单号按文本保存；日期填写完整年月日，例如 <time datetime="2026-10-21">2026-10-21</time>。提单号与订舱号需使用管理员配置的同一种查询类型。</p></li><li><strong>点击“手动同步数据”</strong><p>在“实时数据变更”页面点击按钮，系统会读取全部订单、查询官网并写回变化。等待进度完成即可，无需重复点击。“读取订单”只刷新表格数据，不查询官网，也不修改 WPS。</p></li><li><strong>查看结果与变更</strong><p>通过“已更新”查看本次写回的日期，通过“异常订单”查看失败原因。点击左侧“历史变更记录”可回看修改前后的日期；“系统运行记录”可查看任务执行结果。</p></li></ol></section>
-<section><h3>只同步指定订单</h3><p>在“单票同步”中输入 WPS 中的完整单号，或点击订单行右侧“单票同步”。需要同步多票时，勾选订单后点击“同步选中订单”。这些操作会查询官网，并按现有规则写回最新 ETD 和当前状态。</p><p>勾选跨搜索和筛选保留，点击“清空选择”可重选。表头全选只影响当前筛选结果；重复单号不可勾选。原“手动同步数据”始终同步全部 WPS 订单，不受搜索和勾选影响。单号被删除或改名后，请重新读取并选择。</p></section>
-<section><h3>同步状态怎么看？</h3><dl class="help-status"><div><dt><span class="badge updated">已更新</span></dt><dd>最新 ETD 已写入 WPS，并通过写入后校验。</dd></div><div><dt><span class="badge unchanged">无需变更</span></dt><dd>已核对官网日期，本次无需写回；不代表该票从未延期。</dd></div><div><dt><span class="badge failed">失败</span></dt><dd>查看该行原因，检查单号、日期或网络后再同步。官网查询失败时保留原有 ETD。</dd></div><div><dt><span class="badge failed">写入待确认</span></dt><dd>官网查询成功，但写入结果尚未确认。先点击“读取订单”，核实 WPS 的实际日期。</dd></div></dl></section>
+<section><h3>只同步指定订单</h3><p>在“单票同步”中输入 WPS 中的完整单号，或点击订单行右侧“单票同步”。需要同步多票时，勾选订单后点击“同步选中订单”。这些操作会查询官网，并按现有规则写回港口、最新 ETD 和当前状态。</p><p>勾选跨搜索和筛选保留，点击“清空选择”可重选。表头全选只影响当前筛选结果；重复单号不可勾选。原“手动同步数据”始终同步全部 WPS 订单，不受搜索和勾选影响。单号被删除或改名后，请重新读取并选择。</p></section>
+<section><h3>港口、备注与搜索</h3><p>起运港来自官网 Port of Loading，目的港来自 Port of Discharge。查询不到港口时保留表格原值，并在同步结果中提示。备注在金山文档中人工维护，程序只读取和展示；长备注可展开查看全文。</p><p>搜索框支持单号、起运港、目的港和备注，不区分英文大小写。表格可横向滚动，右侧单票操作保持可用。ETD 列主值为已读取或写回确认的表格值，下方显示本次官网查询值和同步前 ETD；写入待确认时不会用官网值替换主值。</p></section>
+<section><h3>同步状态怎么看？</h3><dl class="help-status"><div><dt><span class="badge updated">已更新</span></dt><dd>最新 ETD 已写入 WPS，并通过写入后校验。</dd></div><div><dt><span class="badge unchanged">无需变更</span></dt><dd>已核对官网日期，本次 ETD 无需变更；港口或当前状态可能已单独更新，不代表该票从未延期。</dd></div><div><dt><span class="badge failed">失败</span></dt><dd>查看该行原因，检查单号、日期或网络后再同步。官网查询失败时保留原有 ETD。</dd></div><div><dt><span class="badge failed">写入待确认</span></dt><dd>官网查询成功，但写入结果尚未确认。先点击“读取订单”，核实 WPS 的实际日期。</dd></div></dl></section>
 <section class="help-note"><h3>使用时留意</h3><p>原始 ETD 是入货通知中的日期，不会被系统覆盖。统计默认显示最近一次同步的结果，历史页面仅展示成功变更且最新 ETD 超过 Valid to 的记录。同步时可切换页面，但本地运行时请保持服务窗口打开。系统当前不自动判断运价，也不自动调整价格，业务处理仍需结合船公司通知。</p></section>
 </article>
 </section>

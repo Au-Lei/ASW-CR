@@ -25,3 +25,18 @@ tbody tr.etd-updated:hover td{background:#ffe680}
 @media(max-width:620px){.single-sync input{min-width:0;flex:1}.single-sync>.small{width:100%}.selection-bar{padding:12px 14px}.selection-bar>.small:last-child{width:100%}}
 
 .row-action{position:sticky;right:0;background:#fff;box-shadow:-1px 0 0 var(--line)}th.row-action{background:#fafafa}
+
+/* Business columns follow the shared sheet; long external text stays inside cells. */
+.orders-table,.history-table{min-width:1500px}
+.orders-table th,.orders-table td,.history-table th,.history-table td{padding:15px 18px;vertical-align:top}
+.port-cell{min-width:150px;max-width:210px}.port-name{display:block;white-space:normal;overflow-wrap:anywhere;line-height:1.6}
+.remark-cell{min-width:220px;max-width:280px;white-space:normal;line-height:1.7}
+.remark-content{white-space:pre-wrap;overflow-wrap:anywhere;max-width:260px}
+.remark-cell summary{cursor:pointer;color:var(--blue);overflow-wrap:anywhere;max-width:260px;font-size:12px}
+.remark-cell details[open] .remark-content{margin-top:8px}
+.table-scroll:focus-visible,.remark-cell summary:focus-visible{outline:3px solid #67adf5;outline-offset:-3px}
+.search{max-width:290px;min-width:220px}.workspace-heading{flex-wrap:wrap}
+.orders-table .row-action{min-width:95px}.orders-table td.row-action{vertical-align:middle}
+@media(max-width:620px){.search{min-width:0;max-width:none}.orders-table th,.orders-table td,.history-table th,.history-table td{padding:14px}.port-cell{min-width:140px}.remark-cell{min-width:200px}}
+
+.orders-table td.date{min-width:120px}.orders-table td.date:nth-child(7){min-width:180px}

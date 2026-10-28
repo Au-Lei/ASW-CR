@@ -92,7 +92,7 @@ node --check etd_sync/static/console.js
 .\.venv\Scripts\python.exe tests/browser_check.py
 ```
 
-它使用临时数据库和模拟订单，临时监听8001端口；截图写入被忽略的 `.impeccable/review/`。需要已安装Chromium。
+它使用临时数据库和模拟订单，自动选择空闲本机端口；截图写入被忽略的 `.impeccable/review/`。需要已安装Chromium。
 
 `tests/benchmark_live.py` 会读取 `.env`、访问真实官网，请仅在明确需要实测时执行。
 

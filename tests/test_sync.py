@@ -101,6 +101,10 @@ class SyncTests(unittest.TestCase):
         post.return_value.json.return_value = {'status': 'finished', 'error': "Cannot read properties of undefined (reading 'Cells')"}
         with self.assertRaisesRegex(RuntimeError, 'WPS_SHEET_NAME'):
             client.read()
+        post.return_value.json.return_value = {'status': 'finished', 'error': '表头不匹配：A1=提单号，B1=ETD（原BC）'}
+        with self.assertRaisesRegex(RuntimeError, '固定列旧版') as outdated:
+            client.read()
+        self.assertIn('无需把新表改回旧列顺序', str(outdated.exception))
         post.return_value.json.return_value = {'status': 'finished', 'error': 'test https://secret.example/path'}
         with self.assertRaises(RuntimeError) as caught:
             client.read()

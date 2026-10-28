@@ -3,7 +3,8 @@
 from .dates import parse_date
 
 SOURCE_FIELDS = ('original_etd', 'latest_etd', 'valid_to', 'current_status')
-QUERY_FIELDS = ('before_etd', 'queried_etd', 'failure_stage')
+QUERY_FIELDS = ('before_etd', 'queried_etd', 'failure_stage', 'queried_pol', 'queried_pod',
+                'pol_raw', 'pod_raw', 'warnings', 'ports_updated', 'ports_written_at')
 
 
 def normalize_targets(mode, order_nos):
@@ -24,13 +25,34 @@ def reconcile_orders(raw, previous):
     for order in raw:
         number = str(order['order_no']).strip()
         old = previous.get(number, {})
-        changed = bool(old) and any(old.get(key) != order.get(key) for key in SOURCE_FIELDS)
+        changed = bool(old) and (any(old.get(key) != order.get(key) for key in SOURCE_FIELDS) or
+                                 any(key in order and old.get(key) != order[key] for key in ('pol', 'pod')))
         orders.append({**order, 'order_no': number, 'last_checked': old.get('last_checked'),
                        'status': 'unqueried' if changed else old.get('status', 'unqueried'),
                        'message': '表格数据已变化，请重新同步' if changed else old.get('message', ''),
-                       'pol': old.get('pol', ''),
+                       'pol': order.get('pol', old.get('pol', '')),
+                       'ports_enabled': 'pol' in order and 'pod' in order,
                        **{key: None if changed else old.get(key) for key in QUERY_FIELDS}})
     return orders
+
+
+def port_changes(order, result):
+    """Only write confirmed nonempty ports to rows with real WPS port columns."""
+    if not order.get('ports_enabled', 'pol' in order and 'pod' in order):
+        return {}, []
+    changes, warnings = {}, []
+    for key, label in (('pol', '起运港'), ('pod', '目的港')):
+        value = result.get(key)
+        if value is None or isinstance(value, str) and not value.strip():
+            warnings.append(f'官网{label}为空或缺失，保留表格原值')
+            continue
+        if (not isinstance(value, str) or len(value) > 200 or
+                any(ord(c) < 32 or ord(c) == 127 for c in value) or value.strip()[0] in '=+@-'):
+            raise ValueError(f'官网{label}格式异常，未写回')
+        value = value.strip()
+        if value != str(order.get(key) or '').strip():
+            changes[key] = value
+    return changes, warnings
 
 
 def target_indices(orders, targets):

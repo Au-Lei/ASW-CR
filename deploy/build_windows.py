@@ -66,7 +66,7 @@ def build(commit):
     bundle = release / 'windows' / 'ASW-CR'
     shutil.copyfile(ROOT / 'docs' / 'WINDOWS.md', bundle / '使用说明.txt')
     shutil.copyfile(ROOT / 'wps' / 'etd_bridge.js', bundle / 'WPS对接脚本.txt')
-    info = {'version': '0.2.0', 'commit': commit, 'platform': 'windows-x64',
+    info = {'version': '0.3.0', 'commit': commit, 'platform': 'windows-x64',
             'packages': {name: importlib.metadata.version(name)
                          for name in ('PyInstaller', 'playwright', 'Flask', 'waitress', 'pystray', 'Pillow')}}
     (bundle / 'build-info.json').write_text(json.dumps(info, indent=2), encoding='utf-8')

@@ -45,9 +45,17 @@ export function orderRows(state) {
   });
   if (active?.mode === 'sync') {
     const activeItems = new Map(active.items.map(item => [String(item.order_no), item]));
-    rows = rows.map(order => activeItems.get(String(order.order_no)) || order);
+    rows = rows.map(order => {
+      const item = activeItems.get(String(order.order_no));
+      return item ? {...item, latest_etd: confirmedEtd(item)} : order;
+    });
   }
   return rows;
+}
+
+// Only a verified ETD update can promote the query value to the table value.
+export function confirmedEtd(item) {
+  return item.status === 'updated' && item.queried_etd ? item.queried_etd : item.latest_etd;
 }
 
 export function numberCounts(orders) {
@@ -64,7 +72,8 @@ export function filterOrders(orders, filter, query) {
   return orders.filter(item => {
     const matchesStatus = filter === 'all' || (filter === 'failed'
       ? ['failed', 'interrupted'].includes(item.status) : item.status === filter);
-    return matchesStatus && String(item.order_no).toLowerCase().includes(query);
+    return matchesStatus && ['order_no', 'pol', 'pod', 'remark'].some(key =>
+      String(item[key] ?? '').toLowerCase().includes(query));
   });
 }
 
@@ -77,7 +86,7 @@ export function runtimeLogs(jobs) {
     });
     for (const item of job.items) {
       if (item.status === 'waiting') continue;
-      const level = ['updated', 'unchanged'].includes(item.status) ? 'SUCCESS'
+      const level = ['updated', 'unchanged'].includes(item.status) ? (item.warnings?.length ? 'WARN' : 'SUCCESS')
         : ['failed', 'interrupted'].includes(item.status) ? 'ERROR' : 'INFO';
       logs.push({
         at: item.processed_at || item.attempted_at || job.created_at,

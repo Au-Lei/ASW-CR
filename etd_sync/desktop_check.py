@@ -11,16 +11,23 @@ from .service import Console
 class DemoWps:
     def __init__(self):
         self.order = dict(order_no='PACKAGED-DEMO', original_etd='2026-10-21',
-                          latest_etd=None, valid_to='2026-10-25', current_status=None)
+                          latest_etd=None, valid_to='2026-10-25', current_status=None,
+                          pol=None, pod=None, remark='保留人工备注')
 
     def read(self):
         return [dict(self.order)]
 
-    def update(self, order, latest, current_status=None):
+    def update(self, order, latest, current_status=None, *, ports=None):
         self.order.update(latest_etd=latest.isoformat(), current_status=current_status)
+        self.order.update(ports or {})
 
     def update_status(self, order, current_status):
         self.order['current_status'] = current_status
+
+    def update_ports(self, order, ports, current_status=None):
+        self.order.update(ports)
+        if current_status is not None:
+            self.order['current_status'] = current_status
 
 
 def self_test():
@@ -30,7 +37,8 @@ def self_test():
         config = {'WPS_SHEET_NAME': '离线安装包自检', 'QUERY_INTERVAL_SECONDS': '0'}
         fake = DemoWps()
         console = Console(Path(directory) / 'test.sqlite3', config, wps_factory=lambda: fake,
-                          fetch_factory=lambda: lambda n: {'etd': date(2026, 10, 26)})
+                          fetch_factory=lambda: lambda n: {'etd': date(2026, 10, 26),
+                                                                         'pol': 'QINGDAO', 'pod': 'HAMBURG'})
         server = LocalServer(config, console=console)
         lock = InstanceLock(Path(directory) / 'desktop.lock')
         try:
@@ -61,6 +69,25 @@ def self_test():
                     expect(page.locator('#changes-body tr')).to_have_count(1)
                     assert not errors, errors
                     assert fake.order['latest_etd'] == '2026-10-26'
+                    assert fake.order['pol'] == 'QINGDAO' and fake.order['pod'] == 'HAMBURG'
+                    expect(page.locator('#changes-body')).to_contain_text('QINGDAO')
+                    expect(page.locator('#changes-body')).to_contain_text('保留人工备注')
+                    page.locator('[data-page=realtime]').click()
+                    page.locator('#search').fill('hamburg')
+                    expect(page.locator('#orders-body tr')).to_have_count(1)
+                    page.locator('#search').fill('保留人工备注')
+                    expect(page.locator('#orders-body tr')).to_have_count(1)
+                    page.locator('#search').fill('')
+                    # Same date with missing ports must perform a port-only write.
+                    fake.order.update(pol=None, pod=None)
+                    page.locator('#sync-button').click()
+                    expect(page.locator('#stat-updated')).to_have_text('0', timeout=15000)
+                    expect(page.locator('#task-title')).to_contain_text('同步数据 · 已完成')
+                    assert fake.order['pol'] == 'QINGDAO' and fake.order['pod'] == 'HAMBURG'
+                    assert fake.order['remark'] == '保留人工备注'
+                    assert console.snapshot()['jobs'][0]['ports_updated_count'] == 1
+                    assert len(console.snapshot()['changes']) == 1
+                    checks.extend(['port-writes', 'port-only-sync', 'port-remark-search', 'history-snapshots'])
                     checks.extend(['bundled-chromium', 'templates-css-es-modules', 'offline-sync', 'history', 'sqlite'])
                 except Exception as exc:
                     raise RuntimeError(f'{exc}\nBrowser errors: {errors}\n'

@@ -12,7 +12,7 @@ from pathlib import Path
 from .batch import query_batch
 from .dates import needs_update, parse_date, current_status
 from .evergreen import EvergreenClient
-from .orders import normalize_targets, reconcile_orders, target_indices
+from .orders import normalize_targets, reconcile_orders, target_indices, port_changes
 from .storage import ConsoleStore
 from .wps import WpsClient
 
@@ -102,12 +102,21 @@ class Console:
             indices = target_indices(orders, job.get('order_nos'))
             job['total'] = len(indices)
             job['items'] = [{**orders[i], 'before_etd': orders[i]['latest_etd'], 'queried_etd': None,
-                             'status': 'waiting', 'message': '等待查询'} for i in indices]
+                             'status': 'waiting', 'message': '等待查询', 'warnings': [],
+                             'ports_updated': [], 'ports_written_at': None, 'failure_stage': None,
+                             'queried_pol': None, 'queried_pod': None,
+                             'pol_raw': None, 'pod_raw': None} for i in indices]
             self.save_job(job)
             asyncio.run(self.sync_orders(job, orders, client, year, interval, concurrency, indices))
             failed = sum(item['status'] == 'failed' for item in job['items'])
+            job.update(etd_updated_count=sum(item['status'] == 'updated' for item in job['items']),
+                       ports_updated_count=sum(bool(item.get('ports_updated')) for item in job['items']),
+                       warning_count=sum(bool(item.get('warnings')) for item in job['items']))
+            summary = (f"ETD 更新 {job['etd_updated_count']} 票，港口更新 {job['ports_updated_count']} 票"
+                       f"，{job['warning_count']} 票有提示")
             job.update(status='partial' if failed else 'completed', message=
-                       f'同步完成，{failed} 票未成功，请查看异常明细' if failed else f"同步完成，本次 {job['total']} 票订单已核对")
+                       (f'同步完成，{failed} 票未成功，请查看异常明细' if failed else
+                        f"同步完成，本次 {job['total']} 票订单已核对") + '；' + summary)
         except Exception as exc:
             job.update(status='failed', message=self.error(exc))
             for index, item in enumerate(job['items']):
@@ -152,8 +161,16 @@ class Console:
                 latest = result['etd']
                 if latest is None:
                     raise ValueError('官网没有返回有效 ETD')
-                item.update(queried_etd=latest.isoformat(), pol=result.get('pol', ''))
-                order.update(pol=item['pol'], last_checked=now())
+                item.update(queried_etd=latest.isoformat(), queried_pol=result.get('pol'),
+                            queried_pod=result.get('pod'), pol_raw=result.get('pol_raw'),
+                            pod_raw=result.get('pod_raw'))
+                order['last_checked'] = now()
+                ports, warnings = port_changes(order, result)
+                item['warnings'] = warnings
+                port_options = {'ports': ports} if ports else {}
+                # Legacy sheets can still display the queried loading port locally.
+                if not order.get('ports_enabled') and result.get('pol'):
+                    order['pol'] = item['pol'] = result['pol']
                 original, saved = dates[index]
                 business_status = None
                 if 'current_status' in order:
@@ -165,18 +182,30 @@ class Console:
                     # Only this result handler writes; no concurrent mutations in WPS.
                     # Network I/O runs off the event loop, allowing other pages to load.
                     if business_status is None:
-                        await asyncio.to_thread(client.update, order, latest)
+                        await asyncio.to_thread(client.update, order, latest, **port_options)
                     else:
-                        await asyncio.to_thread(client.update, order, latest, current_status=business_status)
+                        await asyncio.to_thread(client.update, order, latest, current_status=business_status, **port_options)
                     order['latest_etd'] = latest.isoformat()
                     item.update(status='updated', written_at=now(), message='已写入 WPS 并验证')
                 else:
-                    if business_status is not None and business_status != order.get('current_status'):
+                    if ports:
+                        stage = 'write'
+                        options = {} if business_status is None else {'current_status': business_status}
+                        await asyncio.to_thread(client.update_ports, order, ports, **options)
+                        item.update(status='unchanged', message='ETD 无需变更，港口已写回并验证')
+                        if business_status is not None and business_status != order.get('current_status'):
+                            item['status_written_at'] = now()
+                    elif business_status is not None and business_status != order.get('current_status'):
                         stage = 'write'
                         await asyncio.to_thread(client.update_status, order, business_status)
                         item.update(status='unchanged', message='ETD 无需变更，当前状态已写回并验证', status_written_at=now())
                     else:
                         item.update(status='unchanged', message='日期一致，无需写入')
+                if ports:
+                    order.update(ports)
+                    item.update(ports, ports_updated=list(ports), ports_written_at=now())
+                    if item['status'] == 'updated':
+                        item['message'] = 'ETD 与港口已写入 WPS 并验证'
                 if business_status is not None:
                     order['current_status'] = item['current_status'] = business_status
             except Exception as exc:
@@ -184,10 +213,13 @@ class Console:
                 if stage == 'write':
                     message = '写入结果待确认，请重新读取 WPS。' + message
                 item.update(status='failed', failure_stage=stage, message=message)
+            if item.get('warnings'):
+                item['message'] += '；' + '；'.join(item['warnings'])
             item['processed_at'] = now()
             item['last_checked'] = order.get('last_checked')
             order.update(status=item['status'], message=item['message'])
-            order.update(before_etd=item['before_etd'], queried_etd=item['queried_etd'], failure_stage=item.get('failure_stage'))
+            order.update({key: item.get(key) for key in ('before_etd', 'queried_etd', 'failure_stage',
+                'queried_pol', 'queried_pod', 'pol_raw', 'pod_raw', 'warnings', 'ports_updated', 'ports_written_at')})
             job['processed'] += 1
             update_progress()
             self.store.save_progress(job, orders)

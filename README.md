@@ -6,6 +6,8 @@
 
 macOS / Linux 本地开发见 [跨平台启动说明](docs/DEVELOPMENT.md#macos--linux)。
 
+最新开发版本（Windows 0.3.0、港口与备注功能）位于 `codex/local-improvements` 分支；换电脑请使用下方带 `--branch` 的克隆命令，避免取到旧版 main。
+
 ## 文档入口
 
 | 你要做什么 | 阅读文档 |
@@ -41,7 +43,7 @@ macOS / Linux 本地开发见 [跨平台启动说明](docs/DEVELOPMENT.md#macos-
 打开 PowerShell，在你想保存项目的目录执行：
 
 ```powershell
-git clone https://github.com/Au-Lei/ASW-CR.git
+git clone --branch codex/local-improvements --single-branch https://github.com/Au-Lei/ASW-CR.git
 cd ASW-CR
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt

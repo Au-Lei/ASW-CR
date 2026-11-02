@@ -1,5 +1,19 @@
 # 换电脑继续开发
 
+## 0. 在另一台电脑的 Codex 继续
+
+当前开发分支为 `codex/local-improvements`，业务版本为 0.3.0。先按下文克隆并打开 ASW-CR 文件夹，再让新电脑的 Codex 阅读根目录 `AGENTS.md` 与本指南。代码、测试、金山脚本及交接文档随 Git 同步；聊天记录、私密配置和本地历史库不会自动同步。
+
+已有仓库时，先确认没有需要保存的未提交修改，再执行：
+
+```powershell
+git fetch origin
+git switch codex/local-improvements
+git pull --ff-only origin codex/local-improvements
+```
+
+如果本地还没有该分支，用 `git switch --track origin/codex/local-improvements` 替代第二行。不要强制重置或覆盖另一台电脑未提交的工作。
+
 ## 1. 准备环境
 
 本项目为Python后端＋原生HTML/CSS/JavaScript，不需要npm构建、React或前端开发服务器。
@@ -12,7 +26,7 @@
 在PowerShell里执行：
 
 ```powershell
-git clone https://github.com/Au-Lei/ASW-CR.git
+git clone --branch codex/local-improvements --single-branch https://github.com/Au-Lei/ASW-CR.git
 cd ASW-CR
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
@@ -27,7 +41,7 @@ python -m venv .venv
 安装 Git 和 Python 3.12 后，在终端执行（已克隆则直接进入项目目录）：
 
 ```bash
-git clone https://github.com/Au-Lei/ASW-CR.git
+git clone --branch codex/local-improvements --single-branch https://github.com/Au-Lei/ASW-CR.git
 cd ASW-CR
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
@@ -124,7 +138,7 @@ git push -u origin codex/improve-etd
 
 可以复制下面这段作为继续开发时的开场：
 
-> 请先阅读README.md、docs/HANDOFF.md、PRODUCT.md和DESIGN.md。项目是长荣ETD到WPS的手动同步工具：Python/Flask/Playwright，默认2票并发，写回串行，SQLite持久化。云端已采用Ubuntu原生venv＋systemd运行，通过SSH隧道访问。保留现有深蓝侧栏与蓝色按钮风格，不添加定时同步。先运行离线测试，再优化我接下来指定的功能。不要把.env、真实订单库或服务器凭证提交到GitHub；不要自动修改线上WPS或覆盖线上数据库。
+> 请继续开发 ASW-CR，使用 codex/local-improvements 分支。先阅读 AGENTS.md、README.md、docs/HANDOFF.md、docs/DEVELOPMENT.md、docs/PORTS-UPGRADE.md 和 docs/LIVE-INTEGRATION.md，核对 git status，再创建本机虚拟环境、安装 requirements.txt 与 Playwright Chromium，并运行 Python、AirScript 模拟和前端离线测试。当前版本 0.3.0 已实现港口同步、备注搜索、新表头映射和 Windows 打包，正式联调已在 2026-10-28 完成；不要重复初始化数据库或覆盖人工字段。缺少 .env 时使用离线演示，真实配置由我另行提供。完成环境检查后继续实现我指定的需求；不要把凭证或业务数据提交到 GitHub，也不要自动部署或修改真实 WPS。
 
 仓库并不包含聊天历史，但HANDOFF记录了业务约定、技术边界和已完成的决策。
 

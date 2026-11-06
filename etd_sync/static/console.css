@@ -40,3 +40,10 @@ tbody tr.etd-updated:hover td{background:#ffe680}
 @media(max-width:620px){.search{min-width:0;max-width:none}.orders-table th,.orders-table td,.history-table th,.history-table td{padding:14px}.port-cell{min-width:140px}.remark-cell{min-width:200px}}
 
 .orders-table td.date{min-width:120px}.orders-table td.date:nth-child(7){min-width:180px}
+
+#orders-body tr.status-unchanged td{background:#e6f4ea}
+#orders-body tr.status-unchanged:hover td{background:#d2ebd9}
+#orders-body tr.status-changed td{background:#fff3b0}
+#orders-body tr.status-changed:hover td{background:#ffe680}
+#orders-body tr.status-deferred td{background:#fde2e2}
+#orders-body tr.status-deferred:hover td{background:#f8cccc}

@@ -94,7 +94,7 @@ class Console:
             job.update(concurrency=concurrency, interval_seconds=interval, date_year=year)
             client = self.wps_factory()
             orders = reconcile_orders(client.read(), self.store.load_orders())
-            self.save_orders(orders)
+            self.save_orders([o for o in orders if not o.get('archived')])
             job['total'] = len(orders) if job['mode'] == 'read' else 0
             if job['mode'] == 'read':
                 job.update(status='completed', message=f'已从 WPS 读取 {len(orders)} 票订单')
@@ -127,7 +127,7 @@ class Console:
                     if orders is not None:
                         orders[indices[index]].update(status='failed', message=item['message'])
             if orders is not None:
-                self.save_orders(orders)
+                self.save_orders([o for o in orders if not o.get('archived')])
         finally:
             job['finished_at'] = now()
             job['duration_seconds'] = round(time.perf_counter() - started, 2)
@@ -177,6 +177,19 @@ class Console:
                     today = datetime.fromisoformat(now()).date()
                     business_status = current_status(original, latest,
                         None if today > latest else parse_date(order.get('valid_to'), year), today)
+                booking_status = result.get('booking_status')
+                if 'booking_status' in order and booking_status is not None:
+                    if (not isinstance(booking_status, str) or not booking_status.strip() or
+                            len(booking_status) > 200 or any(ord(c) < 32 for c in booking_status) or
+                            booking_status.strip()[0] in '=+@-'):
+                        raise ValueError('官网 Booking Status 格式异常，未写回')
+                    booking_status = booking_status.strip()
+                    if booking_status != str(order.get('booking_status') or '').strip():
+                        stage = 'write'
+                        await asyncio.to_thread(client.update_booking_status, order, booking_status)
+                        order['booking_status'] = item['booking_status'] = booking_status
+                elif 'booking_status' in order:
+                    warnings.append('官网 Booking Status 为空或缺失，保留 Status 原值')
                 if needs_update(original, saved, latest):
                     stage = 'write'
                     # Only this result handler writes; no concurrent mutations in WPS.
@@ -195,10 +208,10 @@ class Console:
                         item.update(status='unchanged', message='ETD 无需变更，港口已写回并验证')
                         if business_status is not None and business_status != order.get('current_status'):
                             item['status_written_at'] = now()
-                    elif business_status is not None and business_status != order.get('current_status'):
+                    elif business_status is not None:
                         stage = 'write'
                         await asyncio.to_thread(client.update_status, order, business_status)
-                        item.update(status='unchanged', message='ETD 无需变更，当前状态已写回并验证', status_written_at=now())
+                        item.update(status='unchanged', message='ETD 无需变更，当前状态及行底色已刷新', status_written_at=now())
                     else:
                         item.update(status='unchanged', message='日期一致，无需写入')
                 if ports:
@@ -208,6 +221,14 @@ class Console:
                         item['message'] = 'ETD 与港口已写入 WPS 并验证'
                 if business_status is not None:
                     order['current_status'] = item['current_status'] = business_status
+                if ('booking_status' in order and
+                        ' '.join(str(result.get('booking_status') or '').lower().split()) in
+                        {'loading', 'loaded', 'cut off', 'cancelled', 'cancel'}):
+                    stage = 'write'
+                    archived = await asyncio.to_thread(client.archive, order)
+                    order.update(archived=True, current_status='已完成', remark=archived['remark'])
+                    item.update(archived=True, current_status='已完成', remark=archived['remark'],
+                                message='已移入 WPS 已完成工作表')
             except Exception as exc:
                 message = self.error(exc)
                 if stage == 'write':
@@ -222,7 +243,7 @@ class Console:
                 'queried_pol', 'queried_pod', 'pol_raw', 'pod_raw', 'warnings', 'ports_updated', 'ports_written_at')})
             job['processed'] += 1
             update_progress()
-            self.store.save_progress(job, orders)
+            self.store.save_progress(job, [o for o in orders if not o.get('archived')])
 
         # Reject bad/duplicate rows before issuing any browser requests.
         for index in indices:

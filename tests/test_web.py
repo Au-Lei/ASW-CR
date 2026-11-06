@@ -302,8 +302,8 @@ class WebTests(unittest.TestCase):
         self.assertEqual(statuses, dict(ORIGINAL='ETD未变更', SHIFT='ETD已变更',
             ROLL='托班到下一批次', DONE='已完成', SAME='ETD未变更', FAIL='ETD已变更'))
         self.assertEqual(self.wps.update.call_count, 2)
-        self.assertEqual(self.wps.update_status.call_count, 2)
-        self.assertEqual({c.args[0]['order_no'] for c in self.wps.update_status.call_args_list}, {'ORIGINAL', 'DONE'})
+        self.assertEqual(self.wps.update_status.call_count, 3)
+        self.assertEqual({c.args[0]['order_no'] for c in self.wps.update_status.call_args_list}, {'ORIGINAL', 'DONE', 'SAME'})
         self.assertEqual({c.kwargs['current_status'] for c in self.wps.update.call_args_list}, {'ETD已变更', '托班到下一批次'})
         items = {i['order_no']: i for i in snapshot['jobs'][0]['items']}
         self.assertEqual(items['DONE']['status'], 'unchanged')

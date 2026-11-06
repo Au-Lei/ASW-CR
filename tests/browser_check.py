@@ -144,16 +144,20 @@ if __name__ == '__main__':
                 assert page.locator('#stat-updated').inner_text() == '1'
                 assert page.locator('#stat-unchanged').inner_text() == '1'
                 assert page.locator('#stat-failed').inner_text() == '1'
-                highlighted = page.locator('#orders-body tr.etd-updated')
+                highlighted = page.locator('#orders-body tr').filter(has_text='DEMO-UPDATED')
                 expect(highlighted).to_have_count(1)
                 expect(highlighted).to_contain_text('DEMO-UPDATED')
                 expect(highlighted).to_contain_text('已完成')
                 expect(highlighted.locator('td').nth(6)).to_contain_text('官网查询 2026-10-26')
                 expect(highlighted.locator('td').nth(6)).to_contain_text('同步前 2026-10-25')
                 expect(highlighted.locator('td').nth(3)).to_have_text('NHAVA SHEVA')
-                expect(highlighted.locator('td').first).to_have_css('background-color', 'rgb(255, 243, 176)')
-                highlighted.hover()
-                expect(highlighted.locator('td').first).to_have_css('background-color', 'rgb(255, 230, 128)')
+                for status_class, color in [('status-unchanged', 'rgb(230, 244, 234)'),
+                                            ('status-changed', 'rgb(255, 243, 176)'),
+                                            ('status-deferred', 'rgb(253, 226, 226)')]:
+                    highlighted.evaluate('(row, cls) => { row.className = cls; }', status_class)
+                    page.locator('#search').hover()
+                    expect(highlighted.locator('td').first).to_have_css('background-color', color)
+                highlighted.evaluate('(row) => { row.className = ""; }')
                 page.locator('#search').hover()
                 page.locator('[data-filter=updated]').click()
                 assert page.locator('#orders-body tr').count() == 1

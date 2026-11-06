@@ -2,7 +2,7 @@
 
 from .dates import parse_date
 
-SOURCE_FIELDS = ('original_etd', 'latest_etd', 'valid_to', 'current_status')
+SOURCE_FIELDS = ('original_etd', 'latest_etd', 'valid_to', 'current_status', 'booking_status')
 QUERY_FIELDS = ('before_etd', 'queried_etd', 'failure_stage', 'queried_pol', 'queried_pod',
                 'pol_raw', 'pod_raw', 'warnings', 'ports_updated', 'ports_written_at')
 

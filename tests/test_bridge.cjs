@@ -12,6 +12,7 @@ function execute(rows, argv, styles = new Map(), options = {}) {
         styles.set(address, color);
       }}};
     },
+    Rows(row) { return {Delete() { rows.splice(row - 1, 1); }}; },
     Cells(row, col) {
       return {
         get Value2() { return rows[row - 1][col - 1]; },
@@ -23,7 +24,7 @@ function execute(rows, argv, styles = new Map(), options = {}) {
     }
   };
   return new Function('Application', 'Context', 'RGB', code)(
-    {Worksheets: {Item: () => sheet}}, {argv: {sheet: '工作表1', ...argv}},
+    {Worksheets: {Item: name => name === '已完成' ? options.target : sheet}}, {argv: {sheet: '工作表1', ...argv}},
     (r, g, b) => r + 256 * g + 65536 * b);
 }
 const header = ['提单号', 'ETD（原BC）', 'Valid to', 'ETD', '当前状态'];
@@ -77,7 +78,14 @@ assert.throws(() => execute(statusRows, {...statusArgs, current_status: '随便�
 assert.throws(() => execute(statusRows, statusArgs, untouched, {failStatusWrite: true}), /当前状态写入后校验失败/);
 assert.equal(execute(statusRows, statusArgs, untouched).current_status, '已完成');
 assert.deepEqual(statusRows[1].slice(0, 5), ['TEST', original, '2026-10-25', '2026-10-26', '保留备注']);
-assert.equal(untouched.size, 0);
+assert.equal(untouched.get('A2:F2'), 255 + 255 * 256 + 255 * 65536);
+untouched.clear();
+for (const [status, rgb] of [['ETD未变更', [230,244,234]], ['ETD已变更', [255,243,176]], ['托班到下一批次', [253,226,226]]]) {
+  const rows = [statusHeader, ['TEST', original, '2026-10-25', '2026-10-26', '保留备注', 'ETD已变更']];
+  const colors = new Map();
+  execute(rows, {...statusArgs, current_status: status}, colors);
+  assert.equal(colors.get('A2:F2'), rgb[0] + rgb[1] * 256 + rgb[2] * 65536);
+}
 const changedRows = [statusHeader, ['TEST', original, '2026-10-25', null, '保留备注', null]];
 assert.equal(execute(changedRows, {...args, expected_valid_to: '2026-10-25', expected_status: null,
   current_status: '托班到下一批次'}).current_status, '托班到下一批次');
@@ -99,7 +107,7 @@ const newArgs = {...args, ...ports, expected_valid_to: '2026-10-25', expected_st
 const newStyles = new Map();
 execute(newData, newArgs, newStyles);
 assert.deepEqual(newData[1], ['TEST', 'QINGDAO', 'NHAVA SHEVA', original, '2026-10-25', '2026-10-26', '托班到下一批次', '船公司甩货，不影响价格']);
-assert.equal(newStyles.get('A2:H2'), 255 + 243 * 256 + 176 * 65536);
+assert.equal(newStyles.get('A2:H2'), 253 + 226 * 256 + 226 * 65536);
 // Port-only updates must work without touching ETD, notes, or background.
 const portData = newRows();
 execute(portData, {...args, action: 'update_ports', ...ports}, untouched);
@@ -136,3 +144,31 @@ for (const headers of badHeaders) {
   assert.equal(JSON.stringify(data), before);
 }
 console.log('AirScript mock integration tests passed.');
+
+// The new Status column can be inserted anywhere without moving business fields.
+const bookingRows = [['提单号', 'Status', ...header.slice(1)], ['TEST', null, original, '2026-10-25', null, 'ETD未变更']];
+const bookingArgs = {action:'update_booking_status', order_no:'TEST', expected_original:original,
+  expected_latest:null, expected_booking_status:null, booking_status:'Loaded'};
+assert.equal(execute(bookingRows, {action:'read'}).orders[0].booking_status, null);
+assert.equal(execute(bookingRows, bookingArgs).booking_status, 'Loaded');
+assert.equal(bookingRows[1][5], 'ETD未变更');
+assert.throws(() => execute(bookingRows, {...bookingArgs, booking_status:'Booked'}), /已被修改/);
+assert.throws(() => execute(bookingRows, {...bookingArgs, expected_booking_status:'Loaded', booking_status:'=BAD'}), /有效/);
+
+for (const [booking, reason] of [['Loading','货物已装船'], ['Loaded','货物已装船'], ['Cut Off','已截关/截港'], ['Cancelled','订舱已取消'], ['Cancel','订舱已取消'], ['CANCELLED','订舱已取消'], ['  cut   OFF  ','已截关/截港']]) {
+  const h = ['提单号','ETD（原BC）','Valid to','ETD','Status','当前状态','备注'];
+  const source = [h, ['TEST', original, '2026-10-25', '2026-10-26', booking, 'ETD已变更', '旧备注']];
+  const archived = [h.slice().reverse()];
+  const target = {UsedRange:{Row:1,Rows:{Count:1},Column:1,Columns:{Count:12}},
+    Cells(r,c) { return {get Value2(){return archived[r-1]?.[c-1];},
+      set Value2(v){archived[r-1] ||= []; archived[r-1][c-1]=v;}, set NumberFormat(v){}}; }};
+  const snapshot=execute(source,{action:'read'}).orders[0];
+  const result=execute(source,{action:'archive',order_no:'TEST',expected_original:original,
+    expected_latest:'2026-10-26',expected_row:snapshot},new Map(),{target});
+  assert.equal(result.archived,true);
+  assert.equal(source.length,1);
+  const archivedValues = h.map(header => archived[1][archived[0].indexOf(header)]);
+  assert.equal(archivedValues[5],'已完成');
+  assert.equal(archivedValues[6],reason);
+  assert.deepEqual(archivedValues.slice(0,5),['TEST',original,'2026-10-25','2026-10-26',booking]);
+}

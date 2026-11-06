@@ -1,5 +1,6 @@
 """Evergreen queries, isolated per worker and sharing one browser per batch."""
 import asyncio
+import sys
 import re
 from bs4 import BeautifulSoup
 
@@ -106,7 +107,17 @@ def extract_etd(html):
         warnings.append('官网起运港为空，保留表格原值')
     if pod is None:
         warnings.append('官网目的港为空或缺失，保留表格原值')
-    return {'etd': latest, 'raw': raw, 'pol': pol, 'pod': pod,
+    status_cells = [cell for cell in soup.find_all(['td', 'th'])
+                    if not cell.find('table') and cell.get_text(' ', strip=True) == 'Booking Status']
+    booking_status = None
+    if len(status_cells) > 1:
+        raise ValueError('官网 Booking Status 不唯一，未写回')
+    if status_cells:
+        sibling = status_cells[0].find_next_sibling(['td', 'th'])
+        booking_status = sibling.get_text(' ', strip=True) if sibling else None
+        if not booking_status:
+            booking_status = None
+    return {'booking_status': booking_status, 'etd': latest, 'raw': raw, 'pol': pol, 'pod': pod,
             'pol_raw': pol_raw, 'pod_raw': pod_raw, 'warnings': warnings}
 
 
@@ -144,6 +155,9 @@ class EvergreenSession:
                 async def resource_filter(route):
                     if route.request.resource_type in {'image', 'font', 'media'}:
                         await route.abort()
+                    elif sys.platform == 'win32' and route.request.url.startswith('https://ct.shipmentlink.com/'):
+                        from .windows_transport import fulfill
+                        await fulfill(route)
                     else:
                         await route.continue_()
                 await page.route('**/*', resource_filter)

@@ -107,7 +107,8 @@ function renderOrders({busy,lastSync,numberCounts}) {
   document.querySelectorAll('.filter').forEach(button=>{const chosen=button.dataset.filter===filter;button.classList.toggle('active',chosen);button.setAttribute('aria-pressed',chosen);});
   $('orders-body').replaceChildren(...visible.map(item=>{
     const row=document.createElement('tr');
-    if(item.status==='updated') row.classList.add('etd-updated');
+    const statusClass={'ETD未变更':'status-unchanged','ETD已变更':'status-changed','托班到下一批次':'status-deferred'}[item.current_status];
+    if(statusClass) row.classList.add(statusClass);
     const n=String(item.order_no), duplicate=numberCounts.get(n)!==1;
     const choice=document.createElement('input');choice.type='checkbox';choice.checked=selectedNumbers.has(n);
     choice.disabled=busy || duplicate;choice.setAttribute('aria-label','选择订单 '+n);choice.dataset.focusKey='select:'+n;

@@ -118,11 +118,13 @@ class PortSyncTests(unittest.TestCase):
         self.assertNotIn('pod', self.calls[0][1])
         self.assertIsNone(item['queried_pod'])
 
-    def test_repeat_sync_is_noop_and_status_still_updates(self):
+    def test_repeat_sync_refreshes_status_color_without_etd_history(self):
         self.sync(['ONE'])
         self.calls.clear()
         self.sync(['ONE'])
-        self.assertEqual(self.calls, [])
+        self.assertEqual([call[0] for call in self.calls], ['update_status'])
+        self.assertEqual(self.calls[0][1]['current_status'], 'ETD未变更')
+        self.calls.clear()
         self.rows[0]['current_status'] = 'ETD已变更'
         state, job = self.sync(['ONE'])
         self.assertEqual(self.calls[0][0], 'update_status')
@@ -176,7 +178,9 @@ class PortSyncTests(unittest.TestCase):
         self.assertNotIn('pol', self.calls[0][1])
         self.assertEqual(len(state['changes']), 1)
         self.sync(['ONE'])
-        self.assertEqual(len(self.calls), 1)  # locally cached pol must not enable port writes
+        self.assertEqual(len(self.calls), 2)
+        self.assertEqual(self.calls[-1][0], 'update_status')
+        self.assertNotIn('pol', self.calls[-1][1])  # cached port must not enable port writes
 
     def test_read_uses_wps_ports_and_remark_without_reset_for_note_only_edit(self):
         raw = copy.deepcopy(self.rows)

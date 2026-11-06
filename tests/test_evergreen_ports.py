@@ -10,6 +10,14 @@ class EvergreenPortsTests(unittest.TestCase):
     def setUp(self):
         self.html = (Path(__file__).parent / 'fixtures' / 'evergreen_ports.html').read_text()
 
+    def test_booking_status_is_separate_and_optional(self):
+        self.assertIsNone(extract_etd(self.html)['booking_status'])
+        extra = '<table><tr><td>Booking Status</td><td>Loaded</td></tr></table>'
+        self.assertEqual(extract_etd(self.html + extra)['booking_status'], 'Loaded')
+        self.assertIsNone(extract_etd(self.html + extra.replace('Loaded', ''))['booking_status'])
+        with self.assertRaisesRegex(ValueError, 'Booking Status'):
+            extract_etd(self.html + extra + extra)
+
     def test_ports_and_etd_from_same_basic_table(self):
         result = extract_etd(self.html)
         self.assertEqual(result['etd'], date(2026, 11, 21))

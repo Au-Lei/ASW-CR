@@ -70,7 +70,7 @@ class WpsClient:
                            expected_status=order.get('current_status'))
             expected['current_status'] = current_status
         ports = {} if ports is None else ports
-        if not isinstance(ports, dict) or set(ports) - {'pol', 'pod'}:
+        if not isinstance(ports, dict) or set(ports) - {'pol', 'pod', 'booking_status'}:
             raise ValueError('仅允许更新起运港、目的港')
         for key, value in ports.items():
             if (key not in order or not isinstance(value, str) or not value.strip() or
@@ -84,7 +84,7 @@ class WpsClient:
         result = self.call(action, **payload)
         if ports and (result.get('schema_version') != 2 or result.get('order_no') != order['order_no']):
             raise RuntimeError('港口写入未确认，请更新配套 WPS 脚本并重新读取确认')
-        labels = {'latest_etd': '最新 ETD', 'current_status': '当前状态', 'pol': '起运港', 'pod': '目的港'}
+        labels = {'latest_etd': '最新 ETD', 'current_status': '当前状态', 'pol': '起运港', 'pod': '目的港', 'booking_status': 'Status'}
         for key, value in expected.items():
             if result.get(key) != value:
                 raise RuntimeError(labels[key] + '写入未确认，请更新 WPS 脚本后重新读取确认')
@@ -98,3 +98,14 @@ class WpsClient:
 
     def update_ports(self, order, ports, current_status=None):
         return self._write('update_ports', order, ports=ports, current_status=current_status)
+
+    def update_booking_status(self, order, status):
+        return self._write('update_booking_status', order, ports={'booking_status': status})
+
+    def archive(self, order):
+        result = self.call('archive', order_no=order['order_no'],
+                           expected_original=order['original_etd'], expected_latest=order['latest_etd'],
+                           expected_row=order)
+        if result.get('archived') is not True or result.get('order_no') != order['order_no']:
+            raise RuntimeError('归档结果未确认，请重新读取 WPS 核对')
+        return result
